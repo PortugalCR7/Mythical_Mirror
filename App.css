@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;700&display=swap');
+
+/* 
+  THE MYTHIC ORACLE - TYPOGRAPHY & THEME SYSTEM
+  Locally hosted fonts and CSS Variables for centralized aesthetic control.
+*/
+
+:root {
+  /* Core Palette */
+  --obsidian-bg: #050505;
+  --obsidian-radial-center: #120A1A;
+  /* For the gradient center */
+  --gold-accent: #F3D060;
+  --lavender-header: #A084E8;
+  --lavender-dim: #967bb6;
+  --text-main: #E0E0E0;
+
+  /* Effects */
+  --glow-intensity: 0 0 15px rgba(243, 208, 96, 0.4);
+  --gold-dim-bg: rgba(243, 208, 96, 0.05);
+  /* 5% opacity for backgrounds */
+}
+
+/* --- CINZEL (Headers) --- */
+@font-face {
+  font-family: 'Cinzel';
+  src: url('/assets/fonts/Cinzel-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cinzel';
+  src: url('/assets/fonts/Cinzel-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cinzel';
+  src: url('/assets/fonts/Cinzel-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- INTER (Body) --- */
+@font-face {
+  font-family: 'Inter';
+  src: url('/assets/fonts/Inter-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/assets/fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/assets/fonts/Inter-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- GLOBAL THEME --- */
+body {
+  background-color: var(--obsidian-bg);
+  color: var(--text-main);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', sans-serif;
+  /* Font Restoration: Added Inter fallback */
+}
+
+/* Font Restoration: Added Cinzel fallback for headers */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Cinzel', serif;
+}
+
+/* Custom scrollbar for the obsidian feel */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* --- ANIMATIONS & RITUAL EFFECTS --- */
+
+/* Slow spin for the Oracle's Compass */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+/* The Energy Bar Flow: Moving the light from left to right */
+@keyframes progress-flow {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  50% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-progress-flow {
+  animation: progress-flow 3s ease-in-out infinite;
+}
+
+/* Smooth Fade-In for new elements */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out forwards;
+}
+
+/* Pulse for the Golden Glow */
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+/* Utility for the Obsidian container shadow */
+.obsidian-shadow {
+  box-shadow: 0 0 50px -12px rgba(160, 132, 232, 0.15);
+}
+
+/* Mythic Reveal Animation */
+@keyframes mythicReveal {
+  0% {
+    filter: blur(20px);
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  100% {
+    filter: blur(0px);
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.reveal-anim {
+  animation: mythicReveal 1200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Typography Utilities (Manual Tailwind Support) */
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}

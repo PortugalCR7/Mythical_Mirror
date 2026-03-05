@@ -1,0 +1,28 @@
+{
+  "title": "A Comprehensive Exploration of African Mythologies",
+  "date": "2026-01-13",
+  "traditions": [
+    {
+      "name": "Egyptian",
+      "focus": "Maintenance of Ma'at (cosmic order) against chaos.",
+      "narrative": "The Osiris myth involving death, resurrection, and the triumph of Horus.",
+      "deities": ["Ra (Sun)", "Isis (Magic)", "Anubis (Afterlife)"]
+    },
+    {
+      "name": "Yoruba",
+      "hierarchy": "Supreme being Olodumare with intermediary spirits called Orishas.",
+      "orishas": ["Obatala (Creation)", "Shango (Thunder)", "Eshu (Trickster/Messenger)"],
+      "practice": "Ifa divination used to communicate with the divine."
+    },
+    {
+      "name": "Kongo",
+      "symbol": "The Dikenga cosmogram representing the cyclical journey of the soul.",
+      "concepts": ["Kalûnga (primordial energy/boundary)", "Nkisi (spiritual power containers)."]
+    },
+    {
+      "name": "Maasai",
+      "deity": "Enkai (or Ngai), with dual aspects: Enkai Narok (Black/Benevolent) and Enkai Nanyokie (Red/Vengeful).",
+      "cattle": "Cattle are considered a sacred gift and trust from Enkai."
+    }
+  ]
+}

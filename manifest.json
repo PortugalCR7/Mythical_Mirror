@@ -1,0 +1,135 @@
+{
+    "project": "The Mythical Mirror",
+    "version": "1.0.0",
+    "design_system": {
+        "tokens": {
+            "typography": {
+                "font_family": {
+                    "serif": "Cinzel, serif",
+                    "sans": "Inter, sans-serif"
+                },
+                "hierarchy": {
+                    "display_large": {
+                        "weight": "400",
+                        "size": "32px",
+                        "line_height": "40px",
+                        "letter_spacing": "0px",
+                        "text_transform": "uppercase",
+                        "decoration": "underline",
+                        "decoration_thickness": "1pt",
+                        "decoration_color": "#F3D060"
+                    },
+                    "headline_medium": {
+                        "weight": "400",
+                        "size": "24px",
+                        "line_height": "32px",
+                        "letter_spacing": "0.15px",
+                        "text_transform": "uppercase",
+                        "color": "#F3D060"
+                    },
+                    "body_large": {
+                        "weight": "400",
+                        "size": "16px",
+                        "line_height": "24px",
+                        "letter_spacing": "0.5px"
+                    },
+                    "label_medium": {
+                        "weight": "500",
+                        "size": "12px",
+                        "line_height": "16px",
+                        "letter_spacing": "0.5px",
+                        "text_transform": "uppercase",
+                        "color": "#F3D060"
+                    }
+                }
+            },
+            "colors": {
+                "primary": {
+                    "gold": "#F3D060",
+                    "gold_dim": "rgba(243, 208, 96, 0.4)",
+                    "gold_faint": "rgba(243, 208, 96, 0.1)"
+                },
+                "background": {
+                    "obsidian": "#050505",
+                    "deep_void": "#000000"
+                },
+                "text": {
+                    "on_obsidian": "#Eaeaea",
+                    "gold_accent": "#F3D060"
+                }
+            }
+        },
+        "layout": {
+            "viewport": "mobile",
+            "boundary_boxes": {
+                "HEADER_MAIN": {
+                    "description": "Top navigation and branding area",
+                    "coordinates": {
+                        "x": 0,
+                        "y": 0
+                    },
+                    "dimensions": {
+                        "width": "100%",
+                        "height": "10vh"
+                    },
+                    "z_index": 10
+                },
+                "MYTHO_BRIEF": {
+                    "description": "Central scrollable narrative area set above the Quotable",
+                    "coordinates": {
+                        "x": 0,
+                        "y": "10vh"
+                    },
+                    "dimensions": {
+                        "width": "100%",
+                        "height": "auto"
+                    },
+                    "padding": "24px"
+                },
+                "QUOTABLE": {
+                    "description": "Pull-quote 'One-Liner' box placed strictly between the Mythopoetic Brief and the Cosmic Code",
+                    "coordinates": {
+                        "x": 24,
+                        "y": "relative"
+                    },
+                    "dimensions": {
+                        "width": "calc(100% - 48px)",
+                        "height": "auto"
+                    },
+                    "margin_top": "32px",
+                    "margin_bottom": "32px",
+                    "style": {
+                        "border": "1px solid #F3D060"
+                    }
+                },
+                "COSMIC_CODE": {
+                    "description": "List of cosmic data points",
+                    "coordinates": {
+                        "x": 0,
+                        "y": "relative"
+                    },
+                    "dimensions": {
+                        "width": "100%",
+                        "height": "auto"
+                    },
+                    "padding": "24px"
+                }
+            }
+        },
+        "components": {
+            "cosmic_code_list": {
+                "item_style": {
+                    "label_color": "#F3D060",
+                    "label_transform": "uppercase",
+                    "value_color": "#Eaeaea",
+                    "icon": "star_four_points"
+                }
+            },
+            "archetype_portrait": {
+                "animation": "gaussian-blur-in",
+                "duration": "1200ms",
+                "easing": "ease-out"
+            }
+        }
+    }
+}

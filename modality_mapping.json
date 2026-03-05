@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "project": "The Mythical Mirror",
+  "global_constraints": {
+    "language": "mythic_storytelling",
+    "forbidden_terms": ["projector", "bazi", "lifepath", "degree", "house", "gate", "hexagram"],
+    "styling": "all_caps_underlined"
+  },
+  "modalities": [
+    {
+      "tech_id": "human_design",
+      "mythic_label": "THE ORCHESTRATOR OF RHYTHMS",
+      "tonal_core": "Frequency, communal harmony, and the high-view perspective.",
+      "visual_token": "gold_01"
+    },
+    {
+      "tech_id": "bazi",
+      "mythic_label": "THE RESERVOIR OF STILL WATERS",
+      "tonal_core": "Subterranean wisdom, patient power, and deep emotional storage.",
+      "visual_token": "obsidian_02"
+    },
+    {
+      "tech_id": "numerology",
+      "mythic_label": "THE WEAVER OF FOUNDATIONS",
+      "tonal_core": "Stability, structure, and the architecture of destiny.",
+      "visual_token": "clay_03"
+    },
+    {
+      "tech_id": "vedic_astrology",
+      "mythic_label": "THE CELESTIAL RAINMAKER",
+      "tonal_core": "Spiritual nourishment and the cycle of growth.",
+      "visual_token": "mist_04"
+    },
+    {
+      "tech_id": "gene_keys",
+      "mythic_label": "THE SEED OF THE GREAT CANOPY",
+      "tonal_core": "Potential, expansion, and reaching for the light.",
+      "visual_token": "verdant_05"
+    },
+    {
+      "tech_id": "earth_medicine",
+      "mythic_label": "THE SPIRIT CALLER",
+      "tonal_core": "Elemental connection and emotional fertilization.",
+      "visual_token": "copper_06"
+    },
+    {
+      "tech_id": "mayan_tzolkin",
+      "mythic_label": "THE EYE OF THE TRANSFORMATION",
+      "tonal_core": "Intensity, catalysis, and the center of the storm.",
+      "visual_token": "electric_07"
+    },
+    {
+      "tech_id": "soul_level_astro",
+      "mythic_label": "THE SENTINEL OF THE INNER WATERS",
+      "tonal_core": "Protection, sanctity, and the guarding of the self.",
+      "visual_token": "silver_08"
+    },
+    {
+      "tech_id": "sun_sign_archetype",
+      "mythic_label": "THE FIRST CURRENT",
+      "tonal_core": "Initiation, emotional flow, and primal cleansing.",
+      "visual_token": "azure_09"
+    },
+    {
+      "tech_id": "biometric_synthesis",
+      "mythic_label": "THE VERDANT SENTINEL",
+      "tonal_core": "Physical presence, environmental match, and growth.",
+      "visual_token": "forest_10"
+    }
+  ]
+}

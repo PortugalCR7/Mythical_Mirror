@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Mythical Mirror</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              gold: '#F3D060', // Updated from manifest
+              lavenderPurple: '#967BB6',
+              obsidian: '#050505', // Updated from manifest
+            },
+            fontFamily: {
+              serif: ['Cinzel', 'serif'],
+              sans: ['Inter', 'sans-serif'],
+            }
+          },
+        },
+      };
+    </script>
+
+    <link rel="stylesheet" href="/App.css">
+  </head>
+  <body class="bg-black text-white">
+    <div id="root"></div>
+
+    <script type="module" src="/components/index.tsx"></script>
+  </body>
+</html>

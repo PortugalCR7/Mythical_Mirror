@@ -1,0 +1,47 @@
+{
+  "title": "A Comprehensive Report on the Mythologies of the Americas",
+  "date": "2026-01-13",
+  "subdivisions": [
+    {
+      "name": "North America",
+      "cultures": [
+        {
+          "name": "Navajo (Diné)",
+          "creation": "Emergence through several lower worlds into the present 'Glittering World'.",
+          "figures": "Changing Woman (rejuvenation) and the Hero Twins (monster slayers).",
+          "core_concept": "Hózhó (Harmony, balance, beauty)."
+        },
+        {
+          "name": "Inuit",
+          "deity": "Sedna, goddess of the sea, whose severed fingers became sea mammals.",
+          "concepts": ["Sila (life force)", "Anirniq (soul/breath)", "Angakoks (shamans)"]
+        }
+      ]
+    },
+    {
+      "name": "Central America (Mesoamerica)",
+      "cultures": [
+        {
+          "name": "Maya",
+          "text": "The Popol Vuh details the creation of humans from maize.",
+          "narrative": "The Hero Twins (Hunahpu and Xbalanque) defeating the lords of the underworld, Xibalba."
+        },
+        {
+          "name": "Aztec",
+          "cosmology": "The Legend of the Five Suns and the necessity of sacrifice to sustain the current sun, Tonatiuh.",
+          "figures": "Huitzilopochtli (War/Sun), Quetzalcoatl (Feathered Serpent), and Tezcatlipoca (Night)."
+        }
+      ]
+    },
+    {
+      "name": "South America",
+      "cultures": [
+        {
+          "name": "Inca",
+          "deities": "Viracocha (Creator) and Inti (Sun God, ancestor of the Sapa Inca).",
+          "concept": "Three realms: Hanan Pacha (Above), Kay Pacha (Earth), and Uku Pacha (Underworld)."
+        }
+      ]
+    }
+  ]
+}

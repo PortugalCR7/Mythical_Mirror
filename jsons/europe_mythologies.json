@@ -1,0 +1,45 @@
+{
+  "title": "A Comprehensive Analysis of European Mythologies",
+  "date": "2026-01-13",
+  "sections": [
+    {
+      "category": "Southern Europe",
+      "cultures": [
+        {
+          "name": "Greek",
+          "deities": "The Twelve Olympians led by Zeus on Mount Olympus.",
+          "sources": "Foundational works by Homer (Iliad/Odyssey) and Hesiod (Theogony)."
+        },
+        {
+          "name": "Roman",
+          "characteristics": "Heavy syncretism with Greek gods; focus on civic virtue and historical foundation myths like Romulus and Remus.",
+          "deity_triad": "Jupiter, Juno, and Minerva."
+        }
+      ]
+    },
+    {
+      "category": "Northern Europe",
+      "cultures": [
+        {
+          "name": "Norse",
+          "cosmology": "Nine worlds connected by the world tree Yggdrasil, leading to the prophesied Ragnarök.",
+          "deities": "Odin (Wisdom), Thor (Thunder), and Loki (Trickster)."
+        },
+        {
+          "name": "Anglo-Saxon",
+          "figures": "Woden (Odin), Thunor (Thor), and the concept of Wyrd (Fate)."
+        }
+      ]
+    },
+    {
+      "category": "Eastern Europe",
+      "cultures": [
+        {
+          "name": "Slavic",
+          "dualism": "The struggle between Perun (Sky/Thunder) and Veles (Underworld/Magic).",
+          "folklore": "Figures like the house spirit Domovoi and the witch Baba Yaga."
+        }
+      ]
+    }
+  ]
+}

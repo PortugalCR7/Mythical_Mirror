@@ -1,0 +1,54 @@
+{
+  "title": "A Comprehensive Research Report on Asian Mythologies",
+  "date": "2026-01-13",
+  "categories": [
+    {
+      "region": "East Asia",
+      "traditions": [
+        {
+          "culture": "Chinese",
+          "creation": "The myth of Pangu describes a giant emerging from a cosmic egg to separate yin and yang. Nüwa is credited with creating humans from clay and repairing the sky.",
+          "pantheon": "Led by the Jade Emperor (Yu Huang), acting as a celestial bureaucracy.",
+          "themes": ["Harmony and balance", "Filial piety", "Pursuit of immortality (Taoist influence)"]
+        },
+        {
+          "culture": "Japanese (Shinto)",
+          "creation": "Izanagi and Izanami gave birth to the islands of Japan; their separation established the boundaries of life and death.",
+          "deities": "Amaterasu (Sun Goddess), Susanoo (Storm God), and Tsukuyomi (Moon God).",
+          "themes": ["Purity vs. Pollution (kegare)", "Reverence for nature (kami)"]
+        }
+      ]
+    },
+    {
+      "region": "South Asia",
+      "traditions": [
+        {
+          "culture": "Hindu Vedic",
+          "cosmology": "Cyclical time (yugas) involving endless creation, preservation, and dissolution.",
+          "trimurti": "Brahma (Creator), Vishnu (Preserver), and Shiva (Destroyer).",
+          "concepts": ["Dharma (duty)", "Karma (cause and effect)", "Samsara (rebirth)"]
+        },
+        {
+          "culture": "Buddhist",
+          "narratives": "The life of Siddhartha Gautama and the Jataka tales (previous lives of the Buddha).",
+          "beings": "Bodhisattvas like Avalokiteśvara (Compassion) and Mañjuśrī (Wisdom)."
+        }
+      ]
+    },
+    {
+      "region": "West Asia",
+      "traditions": [
+        {
+          "culture": "Mesopotamian",
+          "creation": "The Enuma Elish depicts Marduk's victory over the primordial chaos monster Tiamat.",
+          "narrative": "The Epic of Gilgamesh explores the quest for immortality and the acceptance of human mortality."
+        },
+        {
+          "culture": "Persian (Zoroastrian)",
+          "dualism": "The struggle between Ahura Mazda (Good) and Angra Mainyu (Evil).",
+          "legacy": "Influenced concepts of monotheism and final judgment in later religions."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "The Mythical Mirror",
+  "description": "A viral AI web application that performs a 10-point 'Cosmic Code' analysis and synthesizes a mythopoetic brief with cinematic portraiture.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

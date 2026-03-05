@@ -1,0 +1,33 @@
+{
+  "report_id": "OCM-2026-0113",
+  "title": "Research Report on Oceanian Mythologies",
+  "date": "2026-01-13",
+  "regions": [
+    {
+      "name": "Polynesia",
+      "cultures": ["Māori", "Hawaiian", "Samoan", "Tongan", "Tahitian", "Cook Islander", "Rapa Nui"],
+      "deities_and_figures": "Key figures include the trickster demigod Māui, known for fishing up islands and stealing fire. In Māori tradition, the primordial parents are Ranginui (Sky Father) and Papatūānuku (Earth Mother). Hawaiian deities include the 'ka hā' quartet (Kāne, Kū, Lono, Kanaloa) and the volcanic goddess Pele.",
+      "creation_and_cosmology": "Common motifs involve the forceful separation of primordial parents to create the world of light. The Hawaiian Kumulipo chant traces cosmic evolution from darkness to royal lineages.",
+      "themes": ["Mana (spiritual power)", "Tapu/Kapu (sacred prohibitions)", "Maritime voyaging"]
+    },
+    {
+      "name": "Aboriginal Australia",
+      "concept": "The Dreaming (Everywhen)",
+      "deities_and_figures": "The Rainbow Serpent is a widespread creator linked to water and fertility. Other figures include Baiame (Sky Father), the Wandjina (rain spirits), and Bunjil.",
+      "key_concepts": "Songlines (Dreaming tracks) map the journeys of ancestral beings across the continent. Totemism establishes kinship between individuals and ancestral spirits.",
+      "cultural_significance": "Connection to 'Country' defines identity and responsibility through spiritual inheritance."
+    },
+    {
+      "name": "Melanesia",
+      "characteristics": "Immense linguistic and cultural fragmentation with over a thousand distinct languages.",
+      "deities_and_figures": "Includes the serpent god Degei (Fiji), the creator Qat (Vanuatu), and the dualistic twins To-Kabinana and To-Karvuvu (New Britain).",
+      "themes": ["Ancestor worship", "Mana", "Magic as a practical tool", "Cargo cults (post-colonial)"]
+    },
+    {
+      "name": "Micronesia",
+      "focus": "Animistic foundations deeply intertwined with navigation and sea survival.",
+      "deities_and_figures": "Key figures include Na Areau (Kiribati trickster/creator), Olofat (Chuukese trickster), and the hero Isokelekel (Pohnpei).",
+      "cosmology": "The universe is often viewed as a multi-layered system with a sky world imagined as an inverted bowl."
+    }
+  ]
+}
