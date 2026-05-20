@@ -1,0 +1,12 @@
+{
+  "framework": "vite",
+  "functions": {
+    "api/generate-brief.ts": {
+      "maxDuration": 60,
+      "includeFiles": "jsons/**"
+    },
+    "api/generate-mythic-image.ts": {
+      "maxDuration": 60
+    }
+  }
+}
