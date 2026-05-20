@@ -1,59 +1,90 @@
-import { supabase } from './supabaseClient';
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { OracleResult } from './types';
 
+/**
+ * THE MEMORY VAULT (dbService.ts) - Hybrid Edition
+ * Uses a Singleton Pattern for industrial-grade stability.
+ */
+
+interface OracleDB extends DBSchema {
+  readings: {
+    key: string;
+    value: OracleResult;
+    indexes: { 'by-date': number };
+  };
+}
+
+const DB_NAME = 'mythic-oracle-db';
+const STORE_NAME = 'readings';
+
+class DatabaseSingleton {
+    private static instance: DatabaseSingleton;
+    private dbPromise: Promise<IDBPDatabase<OracleDB>> | null = null;
+    
+    private constructor() {}
+    
+    public static getInstance(): DatabaseSingleton {
+        if (!DatabaseSingleton.instance) {
+            DatabaseSingleton.instance = new DatabaseSingleton();
+        }
+        return DatabaseSingleton.instance;
+    }
+
+    private _init(): Promise<IDBPDatabase<OracleDB>> {
+        return openDB<OracleDB>(DB_NAME, 1, {
+            upgrade(db: IDBPDatabase<OracleDB>) {
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    store.createIndex('by-date', 'timestamp');
+                }
+            },
+            terminated: () => {
+                console.warn('Vault connection lost. Resetting...');
+                this.dbPromise = null;
+            }
+        });
+    }
+
+    public async getConnection(): Promise<IDBPDatabase<OracleDB>> {
+        if (!this.dbPromise) {
+            this.dbPromise = this._init();
+        }
+        try {
+            return await this.dbPromise;
+        } catch (e) {
+            this.dbPromise = null;
+            return this.getConnection();
+        }
+    }
+}
+
+const dbInstance = DatabaseSingleton.getInstance();
+
+// Function name aligned with App.tsx
 export const saveReading = async (reading: OracleResult): Promise<void> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-
-  const { error } = await supabase.from('readings').upsert({
-    id: reading.id,
-    user_id: user.id,
-    birth_data: reading.birthData,
-    fingerprint: reading.fingerprint,
-    archetype: reading.archetype,
-    profile: reading.profile,
-    gift: reading.gift,
-    kin: reading.kin,
-    totem: reading.totem,
-    cosmic_readings: reading.cosmicReadings,
-    mythopoetic_brief: reading.mythopoeticBrief,
-    generated_image: reading.generatedImage,
-    culture: reading.culture,
-  });
-
-  if (error) console.error('[Vault] Save error:', error);
-  else console.log(`[Vault] Revelation ${reading.id} secured.`);
+    try {
+        const db = await dbInstance.getConnection();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        await tx.store.put(reading);
+        await tx.done;
+        console.log(`[Vault] Revelation ${reading.id} secured.`);
+    } catch (error) {
+        console.error("Vaulting Error:", error);
+    }
 };
 
+// Function name aligned for future History components
 export const getAllReadings = async (): Promise<OracleResult[]> => {
-  const { data, error } = await supabase
-    .from('readings')
-    .select('*')
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    console.error('[Vault] Retrieval error:', error);
-    return [];
-  }
-
-  return (data || []).map(row => ({
-    id: row.id,
-    timestamp: new Date(row.created_at).getTime(),
-    birthData: row.birth_data,
-    fingerprint: row.fingerprint,
-    archetype: row.archetype,
-    profile: row.profile,
-    gift: row.gift,
-    kin: row.kin,
-    totem: row.totem,
-    cosmicReadings: row.cosmic_readings,
-    mythopoeticBrief: row.mythopoetic_brief,
-    generatedImage: row.generated_image,
-    culture: row.culture,
-  }));
+    try {
+        const db = await dbInstance.getConnection();
+        return await db.getAllFromIndex(STORE_NAME, 'by-date');
+    } catch (error) {
+        console.error("History Retrieval Error:", error);
+        return [];
+    }
 };
 
 export const deleteReading = async (id: string): Promise<void> => {
-  const { error } = await supabase.from('readings').delete().eq('id', id);
-  if (error) console.error('[Vault] Delete error:', error);
+    const db = await dbInstance.getConnection();
+    await db.delete(STORE_NAME, id);
 };
