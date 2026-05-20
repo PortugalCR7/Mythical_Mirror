@@ -98,21 +98,19 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
           )}
         </div>
 
-        {/* THE QUOTABLE (Inserted between Brief and Cosmic Code) - (Fade In 3) */}
+        {/* THE RECLAMATION (Fade In 3) */}
+        {result.mythopoeticBrief.reclamation && (
+          <div className="space-y-4 text-center mt-12 px-12 animate-stagger-3">
+            <h4 className="text-gold text-lg uppercase tracking-[0.3em] font-cinzel border-b border-gold/20 pb-2 inline-block">The Reclamation</h4>
+            <p className="text-gray-300 leading-relaxed font-serif text-lg">{result.mythopoeticBrief.reclamation}</p>
+          </div>
+        )}
+
+        {/* THE DEVOTION (Fade In 3) */}
         <div className="space-y-4 text-center mt-12 animate-stagger-3">
           <h4 className="text-gold text-lg uppercase tracking-[0.3em] font-cinzel border-b border-gold/20 pb-2 inline-block">The Devotion</h4>
           <p className="text-gray-400 leading-relaxed font-light">{result.mythopoeticBrief.devotion}</p>
         </div>
-
-        {/* VISUAL SYNTHESIS PROMPT (Fade In 3) */}
-        {result.mythopoeticBrief.visual_attire && (
-          <div className="mt-12 p-8 border border-gold/20 bg-obsidian/50 rounded-lg animate-stagger-3">
-            <h4 className="text-center font-cinzel text-sm uppercase tracking-[0.3em] text-gold/70 mb-4">Visual Synthesis</h4>
-            <p className="text-sm text-gray-400/80 leading-relaxed font-mono text-center italic">
-              {result.mythopoeticBrief.visual_attire}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* THE 10-POINT COSMIC CODE (Fade In 3) */}
@@ -171,7 +169,7 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
             // BIOMETRIC SYNTHESIS - THE ANCHOR (Must be last)
             {
               label: 'Biometric Synthesis',
-              title: 'Verdant Sentinel',
+              title: `${result.fingerprint?.elementalClan || 'Verdant'} ${result.fingerprint?.animalTotem || 'Sentinel'}`,
               reading: result.cosmicReadings?.biometric,
               isAnchor: true
             },

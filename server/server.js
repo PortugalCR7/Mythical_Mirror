@@ -36,7 +36,7 @@ if (!project) {
 }
 
 const vertex_ai = new VertexAI({ project: project, location: location });
-const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
 // --- ROUTES ---
 
@@ -214,7 +214,7 @@ app.post('/api/generate-mythic-image', async (req, res) => {
         // const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-fast-001' }); 
         // Re-instantiating model inside loop or here is fine, but original code had it here. 
         // The user's block puts it here:
-        const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-fast-001' });
+        const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-generate-001' });
 
         let attempts = 0;
         let imagenResponse = null;
@@ -226,7 +226,7 @@ app.post('/api/generate-mythic-image', async (req, res) => {
                     contents: [{
                         role: 'user',
                         parts: [
-                            { text: `A hyper-realistic 8K cinematic portrait as ${visualDescription}.` },
+                            { text: visualDescription },
                             { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
                         ]
                     }]

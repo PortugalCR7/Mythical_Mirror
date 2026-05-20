@@ -41,7 +41,6 @@ const App: React.FC = () => {
       // CONDITIONAL IMAGE GENERATION: Only if birth data is present
       if (briefData.hasBirthData) {
         try {
-          await new Promise(resolve => setTimeout(resolve, 2000));
           setAppState(AppState.MANIFESTING);
           const archetype = briefData.archetype_name || matchedArchetype.name;
           imageData = await generateMythicImage(data.image as string, briefData.visual_attire, archetype, fingerprint.bazi);
