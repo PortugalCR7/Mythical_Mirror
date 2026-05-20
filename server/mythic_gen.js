@@ -214,8 +214,12 @@ function getCultureDNA(culture = '') {
  * Builds a structured, layered Imagen 3 prompt from archetype + cultural DNA.
  * Replaces the single-string approach with a directive-based architecture
  * that Imagen 3 responds to with dramatically higher fidelity.
+ *
+ * Imagen 3 does not consume image inputs, so likeness must travel through the
+ * text prompt. When physicalTraits is provided (extracted upstream by Gemini
+ * Vision), it is injected as a dedicated PHYSICAL LIKENESS directive.
  */
-export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject", tonalCore = "Ancient, sacred, and timeless.", regionalStory = "") {
+export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject", tonalCore = "Ancient, sacred, and timeless.", regionalStory = "", physicalTraits = "") {
   const { name, culture, description } = archetype;
   const dna = getCultureDNA(culture);
 
@@ -224,9 +228,16 @@ export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject
     ? regionalStory.split('.')[0].trim()
     : '';
 
-  return [
+  const directives = [
     `MYTHIC IDENTITY: ${name} — ${description} (${culture} tradition)`,
     `SUBJECT: ${userLikenessPrompt}, physically transformed into ${name}. Preserve the subject's facial structure and features while manifesting the divine artifacts and presence of ${name}. This is a mythic portrait, not a costume.`,
+  ];
+
+  if (physicalTraits && physicalTraits.trim()) {
+    directives.push(`PHYSICAL LIKENESS: The subject has ${physicalTraits.trim()}. Render these exact facial features faithfully — this is the same individual, transfigured. Do not substitute generic mythic features.`);
+  }
+
+  directives.push(
     `SCENE: ${dna.setting}`,
     `PALETTE: ${dna.palette}`,
     `ARTISTIC STYLE: ${dna.style}. Ultra-detailed, photorealistic, award-winning portrait photography.`,
@@ -236,5 +247,32 @@ export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject
     `TECHNICAL: 8K resolution, sharp facial mesh, ultra-detailed sacred artifact and fabric textures, volumetric atmosphere, cinematic depth of field, subsurface skin scattering`,
     `COMPOSITION: Divine 3/4 portrait angle, subject fills the frame, cosmic background depth, heroic vertical format`,
     `AVOID: ${dna.avoid}, cartoon, anime, flat illustration, stock fantasy art, plastic skin texture, overexposed face, generic warrior pose`,
-  ].join('\n');
+  );
+
+  return directives.join('\n');
+}
+
+/**
+ * Injects a PHYSICAL LIKENESS directive into an already-built mythic prompt.
+ * Used at image-generation time when traits are extracted from the photo after
+ * the brief prompt was assembled. If a likeness directive already exists, it's
+ * replaced; otherwise the line is inserted right after the SUBJECT directive.
+ */
+export function injectPhysicalLikeness(prompt, physicalTraits) {
+  if (!prompt) return prompt;
+  if (!physicalTraits || !physicalTraits.trim()) return prompt;
+
+  const directive = `PHYSICAL LIKENESS: The subject has ${physicalTraits.trim()}. Render these exact facial features faithfully — this is the same individual, transfigured. Do not substitute generic mythic features.`;
+
+  if (/^PHYSICAL LIKENESS:.*$/m.test(prompt)) {
+    return prompt.replace(/^PHYSICAL LIKENESS:.*$/m, directive);
+  }
+
+  const lines = prompt.split('\n');
+  const subjectIdx = lines.findIndex(l => l.startsWith('SUBJECT:'));
+  if (subjectIdx === -1) {
+    return `${directive}\n${prompt}`;
+  }
+  lines.splice(subjectIdx + 1, 0, directive);
+  return lines.join('\n');
 }

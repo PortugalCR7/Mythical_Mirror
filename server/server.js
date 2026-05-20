@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getArchetype } from './archetypeLoader.js';
 import { getMythicCore } from '../mythicTranslator.js';
-import { augmentMythicPrompt } from './mythic_gen.js';
+import { augmentMythicPrompt, injectPhysicalLikeness } from './mythic_gen.js';
 import { getRegionalStory } from './regionalLoader.js';
 import { getOracleDispatch } from '../config/dispatch.js';
 
@@ -37,6 +37,31 @@ if (!project) {
 
 const vertex_ai = new VertexAI({ project: project, location: location });
 const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+const visionModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+const TRAIT_EXTRACTION_PROMPT = `You are a forensic portrait analyst. Examine the subject's face in this photo and return a single comma-separated line of physical likeness traits suitable for guiding a portrait painter.
+
+Include, where visible: skin tone, eye shape and color, eyebrow shape, nose shape, lip shape, cheekbone structure, jawline, face shape, hair color, hair texture, hair length, facial hair, approximate age range, and any distinguishing features (freckles, dimples, glasses, etc.).
+
+Rules:
+- Output ONLY the trait line. No preamble, no explanation, no markdown.
+- 15 to 30 words. Lowercase phrases separated by commas.
+- Describe what is visible. Do not invent ethnicity, mood, or personality.
+- Do not name the person. Do not reference clothing or background.`;
+
+async function extractPhysicalTraits(base64Image, mimeType) {
+    const result = await visionModel.generateContent({
+        contents: [{
+            role: 'user',
+            parts: [
+                { text: TRAIT_EXTRACTION_PROMPT },
+                { inlineData: { mimeType, data: base64Image } },
+            ],
+        }],
+    });
+    const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return text.trim().replace(/^["']|["']$/g, '');
+}
 
 // --- ROUTES ---
 
@@ -208,28 +233,42 @@ app.post('/api/generate-brief', async (req, res) => {
  */
 app.post('/api/generate-mythic-image', async (req, res) => {
     try {
-        const { userImage, visualDescription, techId, userName } = req.body;
+        const { userImage, visualDescription } = req.body;
 
-        const base64Image = userImage.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-        // const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-fast-001' }); 
-        // Re-instantiating model inside loop or here is fine, but original code had it here. 
-        // The user's block puts it here:
+        const mimeMatch = typeof userImage === 'string' ? userImage.match(/^data:(image\/[a-zA-Z]+);base64,/) : null;
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const base64Image = typeof userImage === 'string'
+            ? userImage.replace(/^data:image\/[a-zA-Z]+;base64,/, '')
+            : '';
+
+        // STAGE 1: Gemini Vision extracts physical likeness traits from the photo.
+        // Imagen 3 does not consume image inputs, so likeness must ride the text prompt.
+        let physicalTraits = '';
+        if (base64Image) {
+            try {
+                physicalTraits = await extractPhysicalTraits(base64Image, mimeType);
+                console.log('[Biometric Uplink] Extracted traits:', physicalTraits);
+            } catch (err) {
+                console.warn('[Biometric Uplink] Vision extraction failed, continuing without traits:', err.message);
+            }
+        }
+
+        // STAGE 2: Inject the traits into the mythic prompt as a PHYSICAL LIKENESS directive.
+        const finalPrompt = injectPhysicalLikeness(visualDescription, physicalTraits);
+
+        // STAGE 3: Imagen 3 text-only generation.
         const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-generate-001' });
 
         let attempts = 0;
         let imagenResponse = null;
 
-        // THE PATIENCE LOOP
         while (attempts < 3 && !imagenResponse) {
             try {
                 imagenResponse = await imagenModel.generateContent({
                     contents: [{
                         role: 'user',
-                        parts: [
-                            { text: visualDescription },
-                            { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
-                        ]
-                    }]
+                        parts: [{ text: finalPrompt }],
+                    }],
                 });
             } catch (error) {
                 if (error.status === 429 || error.code === 429 || error.message?.includes('429')) {
@@ -247,7 +286,7 @@ app.post('/api/generate-mythic-image', async (req, res) => {
         const generatedContent = imagenResponse.response.candidates?.[0]?.content?.parts?.[0];
         const finalImage = `data:${generatedContent.inlineData.mimeType};base64,${generatedContent.inlineData.data}`;
 
-        res.json({ image: finalImage });
+        res.json({ image: finalImage, physicalTraits });
 
     } catch (error) {
         console.error("[Biometric Uplink] Failure:", error);
