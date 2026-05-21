@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 // @ts-ignore – JS helpers bundled by Vercel
 import { getArchetype } from '../server/archetypeLoader.js';
 // @ts-ignore
@@ -9,16 +9,25 @@ import { getRegionalStory } from '../server/regionalLoader.js';
 // @ts-ignore
 import { getOracleDispatch } from '../config/dispatch.js';
 
-function makeVertexAI() {
-  const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.VITE_GCP_PROJECT_ID;
-  const location = process.env.GOOGLE_CLOUD_LOCATION || process.env.VITE_GCP_LOCATION || 'us-central1';
-  if (!project) throw new Error('GOOGLE_CLOUD_PROJECT is not configured');
-  const credJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  return new VertexAI({
-    project,
-    location,
-    ...(credJson && { googleAuthOptions: { credentials: JSON.parse(credJson) } }),
-  });
+const TEXT_MODEL = 'gemini-2.5-flash';
+
+function makeClient() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
+  return new GoogleGenAI({ apiKey });
+}
+
+function parseMaybeJson(text: string): any {
+  if (!text) return null;
+  try { return JSON.parse(text); } catch {}
+  const fence = text.match(/```json([\s\S]*?)```/);
+  if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first !== -1 && last !== -1 && last > first) {
+    try { return JSON.parse(text.substring(first, last + 1)); } catch {}
+  }
+  return null;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -36,6 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const photoMimeType = photoMatch ? photoMatch[1] : '';
     const photoBase64 = photoMatch ? photoMatch[2] : '';
     const hasPhoto = !!photoBase64;
+
     const MYTHIC_ENV_CURRENT = process.env.MYTHIC_ENV_CURRENT || 'The lush, salt-mist jungle of Nosara, Costa Rica';
     const MYTHIC_ENV_ANCHOR = process.env.MYTHIC_ENV_ANCHOR || 'The limestone, dry-creek bedrock of Austin, Texas';
     const currentContext = `Present Realm: ${MYTHIC_ENV_CURRENT}. Ancestral Anchor: ${MYTHIC_ENV_ANCHOR}.`;
@@ -108,32 +118,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "one_liner": "A single, punchy quotable sentence summing up their essence"
         }`;
 
-    const vertex_ai = makeVertexAI();
-    const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const visionModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const ai = makeClient();
 
-    const parseMaybeJson = (text: string): any => {
-      if (!text) return null;
-      try { return JSON.parse(text); } catch {}
-      const fence = text.match(/```json([\s\S]*?)```/);
-      if (fence) { try { return JSON.parse(fence[1]); } catch {} }
-      const first = text.indexOf('{');
-      const last = text.lastIndexOf('}');
-      if (first !== -1 && last !== -1 && last > first) {
-        try { return JSON.parse(text.substring(first, last + 1)); } catch {}
-      }
-      return null;
-    };
-
-    // Fan out narrative + vision-trait extraction in parallel. Hoisting Vision
-    // here removes a serial round-trip from the user-perceived MANIFESTING stage.
-    const narrativePromise = generativeModel.generateContent({
+    // Fan out narrative + vision-trait extraction in parallel.
+    const narrativePromise = ai.models.generateContent({
+      model: TEXT_MODEL,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
+      config: { responseMimeType: 'application/json' },
     });
 
     const traitsPromise: Promise<any> = hasPhoto
-      ? visionModel.generateContent({
+      ? ai.models.generateContent({
+          model: TEXT_MODEL,
           contents: [{
             role: 'user',
             parts: [
@@ -141,20 +137,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               { inlineData: { mimeType: photoMimeType, data: photoBase64 } },
             ],
           }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }).then((r: any) => parseMaybeJson(r.response.candidates?.[0]?.content?.parts?.[0]?.text || ''))
+          config: { responseMimeType: 'application/json' },
+        }).then(r => parseMaybeJson(r.text || ''))
           .catch((err: any) => {
             console.warn('[Biometric Uplink] Trait extraction failed:', err.message);
             return null;
           })
       : Promise.resolve(null);
 
-    const [narrativeResult, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
+    const [narrativeResponse, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
 
-    const responseText = narrativeResult.response.candidates[0].content.parts[0].text;
-    const responseJson = parseMaybeJson(responseText);
+    const responseJson = parseMaybeJson(narrativeResponse.text || '');
     if (!responseJson) {
-      console.error('Failed to parse Gemini response:', responseText);
+      console.error('Failed to parse Gemini response:', narrativeResponse.text);
       throw new Error('Gemini returned invalid JSON.');
     }
 

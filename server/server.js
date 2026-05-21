@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,33 +11,26 @@ import { augmentMythicPrompt, TRAIT_EXTRACTION_PROMPT } from './mythic_gen.js';
 import { getRegionalStory } from './regionalLoader.js';
 import { getOracleDispatch } from '../config/dispatch.js';
 
-// Load environment variables from .env.local (if it exists) and .env
 dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const app = express();
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-
 const PORT = process.env.PORT || 5001;
 
-// Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for base64 images
+app.use(bodyParser.json({ limit: '50mb' }));
 
-// Initialize Vertex AI
-const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.VITE_GCP_PROJECT_ID;
-const location = process.env.GOOGLE_CLOUD_LOCATION || process.env.VITE_GCP_LOCATION || 'us-central1';
-
-if (!project) {
-    console.error("ERROR: Google Cloud Project ID is missing.");
-    console.error("Please set GOOGLE_CLOUD_PROJECT in .env or VITE_GCP_PROJECT_ID in .env.local");
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+if (!apiKey) {
+    console.error("ERROR: GEMINI_API_KEY is not set. Add it to .env or .env.local.");
     process.exit(1);
 }
 
-const vertex_ai = new VertexAI({ project: project, location: location });
-const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
-const visionModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+const ai = new GoogleGenAI({ apiKey });
+const TEXT_MODEL = 'gemini-2.5-flash';
+const IMAGE_MODEL = process.env.MYTHIC_IMAGE_MODEL || 'gemini-2.5-flash-image';
 
 function parseMaybeJson(text) {
     if (!text) return null;
@@ -59,8 +52,19 @@ function parseDataUrl(dataUrl) {
     return { mimeType: match[1], base64: match[2] };
 }
 
+function extractImageFromResponse(response) {
+    const parts = response?.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+        if (part?.inlineData?.data && part?.inlineData?.mimeType?.startsWith('image/')) {
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+    }
+    return null;
+}
+
 async function extractStructuredTraits(base64Image, mimeType) {
-    const result = await visionModel.generateContent({
+    const response = await ai.models.generateContent({
+        model: TEXT_MODEL,
         contents: [{
             role: 'user',
             parts: [
@@ -68,20 +72,17 @@ async function extractStructuredTraits(base64Image, mimeType) {
                 { inlineData: { mimeType, data: base64Image } },
             ],
         }],
-        generationConfig: { responseMimeType: 'application/json' },
+        config: { responseMimeType: 'application/json' },
     });
-    const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return parseMaybeJson(text);
+    return parseMaybeJson(response.text || '');
 }
 
 // --- ROUTES ---
 
-// Health Check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'Online', project: project || 'Pending Config' });
+    res.json({ status: 'Online', textModel: TEXT_MODEL, imageModel: IMAGE_MODEL });
 });
 
-// Root Route
 app.get('/', (req, res) => {
     res.send('The Mythical Mirror API is Online. Use /api/generate-brief for requests.');
 });
@@ -182,9 +183,10 @@ app.post('/api/generate-brief', async (req, res) => {
         // used to happen serially inside /api/generate-mythic-image; hoisting it
         // here removes a round-trip from the user-perceived MANIFESTING stage and
         // lets the brief assemble a likeness-locked Imagen prompt up front.
-        const narrativePromise = generativeModel.generateContent({
+        const narrativePromise = ai.models.generateContent({
+            model: TEXT_MODEL,
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" },
+            config: { responseMimeType: "application/json" },
         });
 
         const traitsPromise = hasPhoto
@@ -194,10 +196,9 @@ app.post('/api/generate-brief', async (req, res) => {
             })
             : Promise.resolve(null);
 
-        const [narrativeResult, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
+        const [narrativeResponse, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
 
-        const responseText = narrativeResult.response.candidates[0].content.parts[0].text;
-        const responseJson = parseMaybeJson(responseText);
+        const responseJson = parseMaybeJson(narrativeResponse.text || '');
         if (!responseJson) {
             console.error("Failed to parse Gemini response:", responseText);
             throw new Error("Gemini returned invalid JSON.");
@@ -228,51 +229,11 @@ app.post('/api/generate-brief', async (req, res) => {
 
 
 
-// Primary renderer: Gemini 2.5 Flash Image ("nano-banana") accepts the
-// reference photo as input and renders the same person in a new style. This
-// is what AI Studio used for the reference portraits. Imagen 3 generate-001
-// is text-only and is kept as a degraded fallback only.
-const PRIMARY_IMAGE_MODEL = process.env.MYTHIC_IMAGE_MODEL || 'gemini-2.5-flash-image-preview';
-const FALLBACK_IMAGE_MODEL = 'imagen-3.0-generate-001';
-
-function extractImageFromResponse(response) {
-    const parts = response?.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-        if (part?.inlineData?.data && part?.inlineData?.mimeType?.startsWith('image/')) {
-            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        }
-    }
-    return null;
-}
-
-async function renderWithFlashImage(prompt, base64, mimeType) {
-    const model = vertex_ai.getGenerativeModel({ model: PRIMARY_IMAGE_MODEL });
-    const parts = [{ text: prompt }];
-    if (base64) parts.push({ inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } });
-    const result = await model.generateContent({
-        contents: [{ role: 'user', parts }],
-        generationConfig: { responseModalities: ['IMAGE'] },
-    });
-    const img = extractImageFromResponse(result.response);
-    if (!img) throw new Error('Flash Image returned no image data.');
-    return img;
-}
-
-async function renderWithImagenFallback(prompt) {
-    const model = vertex_ai.getGenerativeModel({ model: FALLBACK_IMAGE_MODEL });
-    const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    });
-    const img = extractImageFromResponse(result.response);
-    if (!img) throw new Error('Imagen fallback returned no image data.');
-    return img;
-}
-
 /**
- * MANIFESTATION: Renders the mythic portrait.
- * Feeds the reference photo to Gemini 2.5 Flash Image so the actual face is
- * preserved (true image-to-image), with the assembled mythic prompt directing
- * the transfiguration. Falls back to Imagen 3 text-only if Flash Image fails.
+ * MANIFESTATION: Renders the mythic portrait via Gemini 2.5 Flash Image.
+ * Feeds the reference photo so the actual face is preserved (true
+ * image-to-image), with the assembled mythic prompt directing the
+ * transfiguration into the archetype.
  */
 app.post('/api/generate-mythic-image', async (req, res) => {
     try {
@@ -282,32 +243,37 @@ app.post('/api/generate-mythic-image', async (req, res) => {
         }
 
         const { mimeType, base64 } = parseDataUrl(userImage);
+        const parts = [{ text: visualDescription }];
+        if (base64) parts.push({ inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } });
 
         let finalImage = null;
-        let modelUsed = PRIMARY_IMAGE_MODEL;
         let attempts = 0;
         let lastError = null;
 
         while (attempts < 3 && !finalImage) {
             try {
-                finalImage = await renderWithFlashImage(visualDescription, base64, mimeType);
+                const response = await ai.models.generateContent({
+                    model: IMAGE_MODEL,
+                    contents: [{ role: 'user', parts }],
+                    config: { responseModalities: ['IMAGE'] },
+                });
+                finalImage = extractImageFromResponse(response);
+                if (!finalImage) throw new Error('Flash Image returned no image data.');
             } catch (error) {
                 lastError = error;
                 if (error.status === 429 || error.code === 429 || error.message?.includes('429')) {
                     attempts++;
-                    console.warn(`[Manifestation] 429 on ${PRIMARY_IMAGE_MODEL}. Attempt ${attempts}/3. Waiting 3s...`);
+                    console.warn(`[Manifestation] 429 on ${IMAGE_MODEL}. Attempt ${attempts}/3. Waiting 3s...`);
                     await sleep(3000);
                     continue;
                 }
-                console.warn(`[Manifestation] ${PRIMARY_IMAGE_MODEL} failed, falling back to ${FALLBACK_IMAGE_MODEL}:`, error.message);
-                finalImage = await renderWithImagenFallback(visualDescription);
-                modelUsed = FALLBACK_IMAGE_MODEL;
+                throw error;
             }
         }
 
         if (!finalImage) throw lastError || new Error('Manifestation failed.');
 
-        res.json({ image: finalImage, model: modelUsed });
+        res.json({ image: finalImage, model: IMAGE_MODEL });
 
     } catch (error) {
         console.error("[Manifestation] Failure:", error);

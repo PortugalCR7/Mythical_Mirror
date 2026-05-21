@@ -11,7 +11,7 @@
     "start:server": "node server/server.js"
   },
   "dependencies": {
-    "@google-cloud/vertexai": "^1.10.0",
+    "@google/genai": "^2.5.0",
     "@google/generative-ai": "^0.24.1",
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
