@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getArchetype } from './archetypeLoader.js';
 import { getMythicCore } from '../mythicTranslator.js';
-import { augmentMythicPrompt, injectPhysicalLikeness } from './mythic_gen.js';
+import { augmentMythicPrompt, TRAIT_EXTRACTION_PROMPT } from './mythic_gen.js';
 import { getRegionalStory } from './regionalLoader.js';
 import { getOracleDispatch } from '../config/dispatch.js';
 
@@ -39,17 +39,27 @@ const vertex_ai = new VertexAI({ project: project, location: location });
 const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 const visionModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-const TRAIT_EXTRACTION_PROMPT = `You are a forensic portrait analyst. Examine the subject's face in this photo and return a single comma-separated line of physical likeness traits suitable for guiding a portrait painter.
+function parseMaybeJson(text) {
+    if (!text) return null;
+    try { return JSON.parse(text); } catch {}
+    const fence = text.match(/```json([\s\S]*?)```/);
+    if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+        try { return JSON.parse(text.substring(first, last + 1)); } catch {}
+    }
+    return null;
+}
 
-Include, where visible: skin tone, eye shape and color, eyebrow shape, nose shape, lip shape, cheekbone structure, jawline, face shape, hair color, hair texture, hair length, facial hair, approximate age range, and any distinguishing features (freckles, dimples, glasses, etc.).
+function parseDataUrl(dataUrl) {
+    if (typeof dataUrl !== 'string') return { mimeType: '', base64: '' };
+    const match = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.*)$/);
+    if (!match) return { mimeType: '', base64: '' };
+    return { mimeType: match[1], base64: match[2] };
+}
 
-Rules:
-- Output ONLY the trait line. No preamble, no explanation, no markdown.
-- 15 to 30 words. Lowercase phrases separated by commas.
-- Describe what is visible. Do not invent ethnicity, mood, or personality.
-- Do not name the person. Do not reference clothing or background.`;
-
-async function extractPhysicalTraits(base64Image, mimeType) {
+async function extractStructuredTraits(base64Image, mimeType) {
     const result = await visionModel.generateContent({
         contents: [{
             role: 'user',
@@ -58,9 +68,10 @@ async function extractPhysicalTraits(base64Image, mimeType) {
                 { inlineData: { mimeType, data: base64Image } },
             ],
         }],
+        generationConfig: { responseMimeType: 'application/json' },
     });
     const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return text.trim().replace(/^["']|["']$/g, '');
+    return parseMaybeJson(text);
 }
 
 // --- ROUTES ---
@@ -83,7 +94,7 @@ app.get('/', (req, res) => {
  */
 app.post('/api/generate-brief', async (req, res) => {
     try {
-        const { userData } = req.body;
+        const { userData, userImage } = req.body;
         if (!userData) {
             return res.status(400).json({ error: 'Missing user data.' });
         }
@@ -92,6 +103,8 @@ app.post('/api/generate-brief', async (req, res) => {
         }
 
         const hasBirthData = !!(userData.date && userData.location);
+        const { mimeType, base64 } = parseDataUrl(userImage);
+        const hasPhoto = !!base64;
         const MYTHIC_ENV_CURRENT = process.env.MYTHIC_ENV_CURRENT || "The lush, salt-mist jungle of Nosara, Costa Rica";
         const MYTHIC_ENV_ANCHOR = process.env.MYTHIC_ENV_ANCHOR || "The limestone, dry-creek bedrock of Austin, Texas";
         const currentContext = `Present Realm: ${MYTHIC_ENV_CURRENT}. Ancestral Anchor: ${MYTHIC_ENV_ANCHOR}.`;
@@ -164,54 +177,44 @@ app.post('/api/generate-brief', async (req, res) => {
           "one_liner": "A single, punchy quotable sentence summing up their essence"
         }`;
 
-        const result = await generativeModel.generateContent({
+        // Fan out: narrative generation and (if a photo is provided) vision-based
+        // trait extraction run in parallel on gemini-2.5-flash. The vision call
+        // used to happen serially inside /api/generate-mythic-image; hoisting it
+        // here removes a round-trip from the user-perceived MANIFESTING stage and
+        // lets the brief assemble a likeness-locked Imagen prompt up front.
+        const narrativePromise = generativeModel.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
+            generationConfig: { responseMimeType: "application/json" },
         });
 
-        const responseText = result.response.candidates[0].content.parts[0].text;
+        const traitsPromise = hasPhoto
+            ? extractStructuredTraits(base64, mimeType).catch(err => {
+                console.warn('[Biometric Uplink] Trait extraction failed:', err.message);
+                return null;
+            })
+            : Promise.resolve(null);
 
-        // ROBUST JSON EXTRACTION
-        let responseJson;
-        try {
-            // Attempt 1: Direct Parse
-            responseJson = JSON.parse(responseText);
-        } catch (e1) {
-            try {
-                // Attempt 2: Extract from Markdown ```json ... ```
-                const match = responseText.match(/```json([\s\S]*?)```/);
-                if (match) {
-                    responseJson = JSON.parse(match[1]);
-                } else {
-                    // Attempt 3: Find first '{' and last '}'
-                    const firstOpen = responseText.indexOf('{');
-                    const lastClose = responseText.lastIndexOf('}');
-                    if (firstOpen !== -1 && lastClose !== -1) {
-                        responseJson = JSON.parse(responseText.substring(firstOpen, lastClose + 1));
-                    } else {
-                        throw new Error("No JSON structure found.");
-                    }
-                }
-            } catch (e2) {
-                console.error("Failed to parse Gemini response:", responseText);
-                throw new Error("Gemini returned invalid JSON: " + e2.message);
-            }
+        const [narrativeResult, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
+
+        const responseText = narrativeResult.response.candidates[0].content.parts[0].text;
+        const responseJson = parseMaybeJson(responseText);
+        if (!responseJson) {
+            console.error("Failed to parse Gemini response:", responseText);
+            throw new Error("Gemini returned invalid JSON.");
         }
 
-        // Add hasBirthData to the response
         responseJson.hasBirthData = hasBirthData;
         responseJson.culture = userData.archetypeRef.culture;
+        responseJson.physical_traits = physicalTraits;
 
-        // If birth data is present, inject the full visual prompt
+        // Assemble the final Imagen prompt with the structured likeness baked in.
+        // The image endpoint becomes a thin Imagen renderer with no Vision call.
         if (responseJson.hasBirthData) {
             const archetype = getArchetype(responseJson.archetype_name);
             if (archetype) {
                 const imageRegionalStory = getRegionalStory(archetype.culture);
-                // Using a default tonal core as it's not present in the brief generation
                 const tonalCore = "Frequency, communal harmony, and the high-view perspective. Subterranean wisdom and abyssal clarity.";
-                responseJson.visual_attire = augmentMythicPrompt(archetype, "the subject", tonalCore, imageRegionalStory);
+                responseJson.visual_attire = augmentMythicPrompt(archetype, "the subject", tonalCore, imageRegionalStory, physicalTraits);
             }
         }
 
@@ -225,71 +228,89 @@ app.post('/api/generate-brief', async (req, res) => {
 
 
 
+// Primary renderer: Gemini 2.5 Flash Image ("nano-banana") accepts the
+// reference photo as input and renders the same person in a new style. This
+// is what AI Studio used for the reference portraits. Imagen 3 generate-001
+// is text-only and is kept as a degraded fallback only.
+const PRIMARY_IMAGE_MODEL = process.env.MYTHIC_IMAGE_MODEL || 'gemini-2.5-flash-image-preview';
+const FALLBACK_IMAGE_MODEL = 'imagen-3.0-generate-001';
+
+function extractImageFromResponse(response) {
+    const parts = response?.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+        if (part?.inlineData?.data && part?.inlineData?.mimeType?.startsWith('image/')) {
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+    }
+    return null;
+}
+
+async function renderWithFlashImage(prompt, base64, mimeType) {
+    const model = vertex_ai.getGenerativeModel({ model: PRIMARY_IMAGE_MODEL });
+    const parts = [{ text: prompt }];
+    if (base64) parts.push({ inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } });
+    const result = await model.generateContent({
+        contents: [{ role: 'user', parts }],
+        generationConfig: { responseModalities: ['IMAGE'] },
+    });
+    const img = extractImageFromResponse(result.response);
+    if (!img) throw new Error('Flash Image returned no image data.');
+    return img;
+}
+
+async function renderWithImagenFallback(prompt) {
+    const model = vertex_ai.getGenerativeModel({ model: FALLBACK_IMAGE_MODEL });
+    const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+    const img = extractImageFromResponse(result.response);
+    if (!img) throw new Error('Imagen fallback returned no image data.');
+    return img;
+}
+
 /**
- * BIOMETRIC UPLINK: Generates Mythic Image from User Photo
- */
-/**
- * BIOMETRIC UPLINK: Generates Mythic Image with Subject Reference (Likeness Lock)
+ * MANIFESTATION: Renders the mythic portrait.
+ * Feeds the reference photo to Gemini 2.5 Flash Image so the actual face is
+ * preserved (true image-to-image), with the assembled mythic prompt directing
+ * the transfiguration. Falls back to Imagen 3 text-only if Flash Image fails.
  */
 app.post('/api/generate-mythic-image', async (req, res) => {
     try {
-        const { userImage, visualDescription } = req.body;
-
-        const mimeMatch = typeof userImage === 'string' ? userImage.match(/^data:(image\/[a-zA-Z]+);base64,/) : null;
-        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-        const base64Image = typeof userImage === 'string'
-            ? userImage.replace(/^data:image\/[a-zA-Z]+;base64,/, '')
-            : '';
-
-        // STAGE 1: Gemini Vision extracts physical likeness traits from the photo.
-        // Imagen 3 does not consume image inputs, so likeness must ride the text prompt.
-        let physicalTraits = '';
-        if (base64Image) {
-            try {
-                physicalTraits = await extractPhysicalTraits(base64Image, mimeType);
-                console.log('[Biometric Uplink] Extracted traits:', physicalTraits);
-            } catch (err) {
-                console.warn('[Biometric Uplink] Vision extraction failed, continuing without traits:', err.message);
-            }
+        const { visualDescription, userImage } = req.body;
+        if (!visualDescription || typeof visualDescription !== 'string') {
+            return res.status(400).json({ error: 'Missing visualDescription.' });
         }
 
-        // STAGE 2: Inject the traits into the mythic prompt as a PHYSICAL LIKENESS directive.
-        const finalPrompt = injectPhysicalLikeness(visualDescription, physicalTraits);
+        const { mimeType, base64 } = parseDataUrl(userImage);
 
-        // STAGE 3: Imagen 3 text-only generation.
-        const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-generate-001' });
-
+        let finalImage = null;
+        let modelUsed = PRIMARY_IMAGE_MODEL;
         let attempts = 0;
-        let imagenResponse = null;
+        let lastError = null;
 
-        while (attempts < 3 && !imagenResponse) {
+        while (attempts < 3 && !finalImage) {
             try {
-                imagenResponse = await imagenModel.generateContent({
-                    contents: [{
-                        role: 'user',
-                        parts: [{ text: finalPrompt }],
-                    }],
-                });
+                finalImage = await renderWithFlashImage(visualDescription, base64, mimeType);
             } catch (error) {
+                lastError = error;
                 if (error.status === 429 || error.code === 429 || error.message?.includes('429')) {
                     attempts++;
-                    console.warn(`[QUOTA] Rate limit hit. Attempt ${attempts}/3. Waiting 3s...`);
+                    console.warn(`[Manifestation] 429 on ${PRIMARY_IMAGE_MODEL}. Attempt ${attempts}/3. Waiting 3s...`);
                     await sleep(3000);
-                } else {
-                    throw error;
+                    continue;
                 }
+                console.warn(`[Manifestation] ${PRIMARY_IMAGE_MODEL} failed, falling back to ${FALLBACK_IMAGE_MODEL}:`, error.message);
+                finalImage = await renderWithImagenFallback(visualDescription);
+                modelUsed = FALLBACK_IMAGE_MODEL;
             }
         }
 
-        if (!imagenResponse) throw new Error("Manifestation timed out. Defaulting to headshot.");
+        if (!finalImage) throw lastError || new Error('Manifestation failed.');
 
-        const generatedContent = imagenResponse.response.candidates?.[0]?.content?.parts?.[0];
-        const finalImage = `data:${generatedContent.inlineData.mimeType};base64,${generatedContent.inlineData.data}`;
-
-        res.json({ image: finalImage, physicalTraits });
+        res.json({ image: finalImage, model: modelUsed });
 
     } catch (error) {
-        console.error("[Biometric Uplink] Failure:", error);
+        console.error("[Manifestation] Failure:", error);
         res.status(500).json({ error: error.message });
     }
 });

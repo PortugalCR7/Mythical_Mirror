@@ -35,7 +35,7 @@ const App: React.FC = () => {
         location: data.location,
         cosmicFingerprint: fingerprint,
         archetypeRef: matchedArchetype
-      });
+      }, data.image as string | undefined);
 
       let imageData: any = {};
       // CONDITIONAL IMAGE GENERATION: Only if birth data is present

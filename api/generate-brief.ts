@@ -3,7 +3,7 @@ import { VertexAI } from '@google-cloud/vertexai';
 // @ts-ignore – JS helpers bundled by Vercel
 import { getArchetype } from '../server/archetypeLoader.js';
 // @ts-ignore
-import { augmentMythicPrompt } from '../server/mythic_gen.js';
+import { augmentMythicPrompt, TRAIT_EXTRACTION_PROMPT } from '../server/mythic_gen.js';
 // @ts-ignore
 import { getRegionalStory } from '../server/regionalLoader.js';
 // @ts-ignore
@@ -25,11 +25,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { userData } = req.body;
+    const { userData, userImage } = req.body;
     if (!userData) return res.status(400).json({ error: 'Missing user data.' });
     if (!userData.archetypeRef) return res.status(400).json({ error: 'Missing archetype reference in user data.' });
 
     const hasBirthData = !!(userData.date && userData.location);
+    const photoMatch = typeof userImage === 'string'
+      ? userImage.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.*)$/)
+      : null;
+    const photoMimeType = photoMatch ? photoMatch[1] : '';
+    const photoBase64 = photoMatch ? photoMatch[2] : '';
+    const hasPhoto = !!photoBase64;
     const MYTHIC_ENV_CURRENT = process.env.MYTHIC_ENV_CURRENT || 'The lush, salt-mist jungle of Nosara, Costa Rica';
     const MYTHIC_ENV_ANCHOR = process.env.MYTHIC_ENV_ANCHOR || 'The limestone, dry-creek bedrock of Austin, Texas';
     const currentContext = `Present Realm: ${MYTHIC_ENV_CURRENT}. Ancestral Anchor: ${MYTHIC_ENV_ANCHOR}.`;
@@ -104,46 +110,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const vertex_ai = makeVertexAI();
     const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const visionModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const result = await generativeModel.generateContent({
+    const parseMaybeJson = (text: string): any => {
+      if (!text) return null;
+      try { return JSON.parse(text); } catch {}
+      const fence = text.match(/```json([\s\S]*?)```/);
+      if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+      const first = text.indexOf('{');
+      const last = text.lastIndexOf('}');
+      if (first !== -1 && last !== -1 && last > first) {
+        try { return JSON.parse(text.substring(first, last + 1)); } catch {}
+      }
+      return null;
+    };
+
+    // Fan out narrative + vision-trait extraction in parallel. Hoisting Vision
+    // here removes a serial round-trip from the user-perceived MANIFESTING stage.
+    const narrativePromise = generativeModel.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: 'application/json' },
     });
 
-    const responseText = result.response.candidates[0].content.parts[0].text;
+    const traitsPromise: Promise<any> = hasPhoto
+      ? visionModel.generateContent({
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: TRAIT_EXTRACTION_PROMPT },
+              { inlineData: { mimeType: photoMimeType, data: photoBase64 } },
+            ],
+          }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }).then((r: any) => parseMaybeJson(r.response.candidates?.[0]?.content?.parts?.[0]?.text || ''))
+          .catch((err: any) => {
+            console.warn('[Biometric Uplink] Trait extraction failed:', err.message);
+            return null;
+          })
+      : Promise.resolve(null);
 
-    let responseJson: any;
-    try {
-      responseJson = JSON.parse(responseText);
-    } catch {
-      try {
-        const match = responseText.match(/```json([\s\S]*?)```/);
-        if (match) {
-          responseJson = JSON.parse(match[1]);
-        } else {
-          const firstOpen = responseText.indexOf('{');
-          const lastClose = responseText.lastIndexOf('}');
-          if (firstOpen !== -1 && lastClose !== -1) {
-            responseJson = JSON.parse(responseText.substring(firstOpen, lastClose + 1));
-          } else {
-            throw new Error('No JSON structure found.');
-          }
-        }
-      } catch (e2: any) {
-        console.error('Failed to parse Gemini response:', responseText);
-        throw new Error('Gemini returned invalid JSON: ' + e2.message);
-      }
+    const [narrativeResult, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
+
+    const responseText = narrativeResult.response.candidates[0].content.parts[0].text;
+    const responseJson = parseMaybeJson(responseText);
+    if (!responseJson) {
+      console.error('Failed to parse Gemini response:', responseText);
+      throw new Error('Gemini returned invalid JSON.');
     }
 
     responseJson.hasBirthData = hasBirthData;
     responseJson.culture = userData.archetypeRef.culture;
+    responseJson.physical_traits = physicalTraits;
 
     if (responseJson.hasBirthData) {
       const archetype = getArchetype(responseJson.archetype_name);
       if (archetype) {
         const imageRegionalStory = getRegionalStory(archetype.culture);
         const tonalCore = 'Frequency, communal harmony, and the high-view perspective. Subterranean wisdom and abyssal clarity.';
-        responseJson.visual_attire = augmentMythicPrompt(archetype, 'the subject', tonalCore, imageRegionalStory);
+        responseJson.visual_attire = augmentMythicPrompt(archetype, 'the subject', tonalCore, imageRegionalStory, physicalTraits);
       }
     }
 
