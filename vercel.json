@@ -6,7 +6,8 @@
       "includeFiles": "jsons/**"
     },
     "api/generate-mythic-image.ts": {
-      "maxDuration": 60
+      "maxDuration": 120
     }
-  }
+  },
+  "regions": ["iad1"]
 }

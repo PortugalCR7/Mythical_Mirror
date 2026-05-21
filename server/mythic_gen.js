@@ -210,23 +210,82 @@ function getCultureDNA(culture = '') {
   return CULTURE_DNA['default'];
 }
 
+const TRAIT_FIELDS = [
+  'skinTone', 'eyeShape', 'eyeColor', 'eyebrowShape',
+  'noseShape', 'lipShape', 'cheekbones', 'jawline',
+  'faceShape', 'hairColor', 'hairTexture', 'hairLength',
+  'facialHair', 'ageRange', 'distinguishingFeatures',
+];
+
+function cleanTrait(value) {
+  if (value === null || value === undefined) return '';
+  const s = String(value).trim().toLowerCase();
+  if (!s || s === 'n/a' || s === 'none' || s === 'unknown' || s === 'null') return '';
+  return s;
+}
+
+/**
+ * Turns a structured trait object (extracted by Gemini Vision) into the
+ * PHYSICAL LIKENESS directive that anchors the Imagen prompt. Returns empty
+ * string when no usable traits are present.
+ */
+export function formatPhysicalLikeness(traits) {
+  if (!traits || typeof traits !== 'object') return '';
+
+  const t = {};
+  for (const key of TRAIT_FIELDS) t[key] = cleanTrait(traits[key]);
+
+  const parts = [];
+  if (t.skinTone) parts.push(`${t.skinTone} skin`);
+
+  const eye = [t.eyeShape, t.eyeColor].filter(Boolean).join(' ');
+  if (eye) parts.push(`${eye} eyes`);
+  if (t.eyebrowShape) parts.push(`${t.eyebrowShape} eyebrows`);
+
+  if (t.noseShape) parts.push(`${t.noseShape} nose`);
+  if (t.lipShape) parts.push(`${t.lipShape} lips`);
+  if (t.cheekbones) parts.push(`${t.cheekbones} cheekbones`);
+  if (t.jawline) parts.push(`${t.jawline} jawline`);
+  if (t.faceShape) parts.push(`${t.faceShape} face shape`);
+
+  const hair = [t.hairLength, t.hairTexture, t.hairColor].filter(Boolean).join(' ');
+  if (hair) parts.push(`${hair} hair`);
+
+  if (t.facialHair && t.facialHair !== 'clean-shaven' && t.facialHair !== 'clean shaven') {
+    parts.push(t.facialHair);
+  }
+  if (t.ageRange) parts.push(t.ageRange);
+  if (t.distinguishingFeatures) parts.push(t.distinguishingFeatures);
+
+  if (parts.length === 0) return '';
+
+  return `PHYSICAL LIKENESS (preserve exactly): ${parts.join(', ')}. Render these exact facial features faithfully — this is the same individual, transfigured into the archetype. Do not substitute generic mythic features, do not alter the bone structure, do not change the eye color or skin tone.`;
+}
+
 /**
  * Builds a structured, layered Imagen 3 prompt from archetype + cultural DNA.
- * Replaces the single-string approach with a directive-based architecture
- * that Imagen 3 responds to with dramatically higher fidelity.
+ * Imagen 3 does not consume image inputs, so likeness travels through the
+ * text prompt as a dedicated PHYSICAL LIKENESS directive assembled from
+ * structured traits (extracted upstream by Gemini Vision).
  */
-export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject", tonalCore = "Ancient, sacred, and timeless.", regionalStory = "") {
+export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject", tonalCore = "Ancient, sacred, and timeless.", regionalStory = "", physicalTraits = null) {
   const { name, culture, description } = archetype;
   const dna = getCultureDNA(culture);
 
-  // Pull first sentence of regional story for atmospheric grounding
   const regionalAtmosphere = regionalStory
     ? regionalStory.split('.')[0].trim()
     : '';
 
-  return [
+  const likenessDirective = formatPhysicalLikeness(physicalTraits);
+
+  const directives = [
     `MYTHIC IDENTITY: ${name} — ${description} (${culture} tradition)`,
     `SUBJECT: ${userLikenessPrompt}, physically transformed into ${name}. Preserve the subject's facial structure and features while manifesting the divine artifacts and presence of ${name}. This is a mythic portrait, not a costume.`,
+  ];
+
+  if (likenessDirective) directives.push(likenessDirective);
+
+  directives.push(
     `SCENE: ${dna.setting}`,
     `PALETTE: ${dna.palette}`,
     `ARTISTIC STYLE: ${dna.style}. Ultra-detailed, photorealistic, award-winning portrait photography.`,
@@ -236,5 +295,38 @@ export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject
     `TECHNICAL: 8K resolution, sharp facial mesh, ultra-detailed sacred artifact and fabric textures, volumetric atmosphere, cinematic depth of field, subsurface skin scattering`,
     `COMPOSITION: Divine 3/4 portrait angle, subject fills the frame, cosmic background depth, heroic vertical format`,
     `AVOID: ${dna.avoid}, cartoon, anime, flat illustration, stock fantasy art, plastic skin texture, overexposed face, generic warrior pose`,
-  ].join('\n');
+  );
+
+  return directives.join('\n');
 }
+
+/**
+ * Forensic-portrait vision prompt. Returns a structured trait JSON object
+ * shaped for formatPhysicalLikeness.
+ */
+export const TRAIT_EXTRACTION_PROMPT = `You are a forensic portrait analyst. Examine the subject's face in this photo and return a JSON object describing their visible physical features. The downstream system will use this to render a faithful portrait, so accuracy and specificity matter more than poetic language.
+
+Return ONLY a JSON object with these exact keys:
+{
+  "skinTone": "warm olive | cool porcelain | deep umber | etc. — 2-4 words",
+  "eyeShape": "almond | round | hooded | monolid | downturned | upturned | etc.",
+  "eyeColor": "deep brown | hazel-green | grey-blue | amber | etc.",
+  "eyebrowShape": "arched | straight | thick | thin | etc.",
+  "noseShape": "straight | aquiline | button | broad | narrow | etc.",
+  "lipShape": "full | thin | bow-shaped | wide | etc.",
+  "cheekbones": "high | soft | prominent | flat | etc.",
+  "jawline": "sharp | rounded | square | tapered | etc.",
+  "faceShape": "oval | round | square | heart | long | etc.",
+  "hairColor": "jet black | auburn | platinum blonde | salt-and-pepper | etc.",
+  "hairTexture": "straight | wavy | coily | curly | etc.",
+  "hairLength": "buzzed | short | shoulder-length | long | etc.",
+  "facialHair": "clean-shaven | stubble | full beard | mustache | goatee | etc.",
+  "ageRange": "early 20s | mid 30s | late 50s | etc.",
+  "distinguishingFeatures": "comma-separated list: freckles, dimples, glasses, beauty mark, scar, etc. — empty string if none"
+}
+
+Rules:
+- Describe only what is visible. Do not infer ethnicity, nationality, mood, or personality.
+- Each field is a short lowercase phrase, no trailing punctuation, no markdown.
+- If a feature is genuinely indeterminable from the photo, use an empty string for that field.
+- Return ONLY the JSON object. No preamble, no explanation, no code fences.`;

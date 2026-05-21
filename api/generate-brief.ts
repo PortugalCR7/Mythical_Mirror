@@ -1,35 +1,51 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 // @ts-ignore – JS helpers bundled by Vercel
 import { getArchetype } from '../server/archetypeLoader.js';
 // @ts-ignore
-import { augmentMythicPrompt } from '../server/mythic_gen.js';
+import { augmentMythicPrompt, TRAIT_EXTRACTION_PROMPT } from '../server/mythic_gen.js';
 // @ts-ignore
 import { getRegionalStory } from '../server/regionalLoader.js';
 // @ts-ignore
 import { getOracleDispatch } from '../config/dispatch.js';
 
-function makeVertexAI() {
-  const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.VITE_GCP_PROJECT_ID;
-  const location = process.env.GOOGLE_CLOUD_LOCATION || process.env.VITE_GCP_LOCATION || 'us-central1';
-  if (!project) throw new Error('GOOGLE_CLOUD_PROJECT is not configured');
-  const credJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  return new VertexAI({
-    project,
-    location,
-    ...(credJson && { googleAuthOptions: { credentials: JSON.parse(credJson) } }),
-  });
+const TEXT_MODEL = 'gemini-2.5-flash';
+
+function makeClient() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
+  return new GoogleGenAI({ apiKey });
+}
+
+function parseMaybeJson(text: string): any {
+  if (!text) return null;
+  try { return JSON.parse(text); } catch {}
+  const fence = text.match(/```json([\s\S]*?)```/);
+  if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first !== -1 && last !== -1 && last > first) {
+    try { return JSON.parse(text.substring(first, last + 1)); } catch {}
+  }
+  return null;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { userData } = req.body;
+    const { userData, userImage } = req.body;
     if (!userData) return res.status(400).json({ error: 'Missing user data.' });
     if (!userData.archetypeRef) return res.status(400).json({ error: 'Missing archetype reference in user data.' });
 
     const hasBirthData = !!(userData.date && userData.location);
+    const photoMatch = typeof userImage === 'string'
+      ? userImage.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.*)$/)
+      : null;
+    const photoMimeType = photoMatch ? photoMatch[1] : '';
+    const photoBase64 = photoMatch ? photoMatch[2] : '';
+    const hasPhoto = !!photoBase64;
+
     const MYTHIC_ENV_CURRENT = process.env.MYTHIC_ENV_CURRENT || 'The lush, salt-mist jungle of Nosara, Costa Rica';
     const MYTHIC_ENV_ANCHOR = process.env.MYTHIC_ENV_ANCHOR || 'The limestone, dry-creek bedrock of Austin, Texas';
     const currentContext = `Present Realm: ${MYTHIC_ENV_CURRENT}. Ancestral Anchor: ${MYTHIC_ENV_ANCHOR}.`;
@@ -102,48 +118,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "one_liner": "A single, punchy quotable sentence summing up their essence"
         }`;
 
-    const vertex_ai = makeVertexAI();
-    const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const ai = makeClient();
 
-    const result = await generativeModel.generateContent({
+    // Fan out narrative + vision-trait extraction in parallel.
+    const narrativePromise = ai.models.generateContent({
+      model: TEXT_MODEL,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
+      config: { responseMimeType: 'application/json' },
     });
 
-    const responseText = result.response.candidates[0].content.parts[0].text;
+    const traitsPromise: Promise<any> = hasPhoto
+      ? ai.models.generateContent({
+          model: TEXT_MODEL,
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: TRAIT_EXTRACTION_PROMPT },
+              { inlineData: { mimeType: photoMimeType, data: photoBase64 } },
+            ],
+          }],
+          config: { responseMimeType: 'application/json' },
+        }).then(r => parseMaybeJson(r.text || ''))
+          .catch((err: any) => {
+            console.warn('[Biometric Uplink] Trait extraction failed:', err.message);
+            return null;
+          })
+      : Promise.resolve(null);
 
-    let responseJson: any;
-    try {
-      responseJson = JSON.parse(responseText);
-    } catch {
-      try {
-        const match = responseText.match(/```json([\s\S]*?)```/);
-        if (match) {
-          responseJson = JSON.parse(match[1]);
-        } else {
-          const firstOpen = responseText.indexOf('{');
-          const lastClose = responseText.lastIndexOf('}');
-          if (firstOpen !== -1 && lastClose !== -1) {
-            responseJson = JSON.parse(responseText.substring(firstOpen, lastClose + 1));
-          } else {
-            throw new Error('No JSON structure found.');
-          }
-        }
-      } catch (e2: any) {
-        console.error('Failed to parse Gemini response:', responseText);
-        throw new Error('Gemini returned invalid JSON: ' + e2.message);
-      }
+    const [narrativeResponse, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
+
+    const responseJson = parseMaybeJson(narrativeResponse.text || '');
+    if (!responseJson) {
+      console.error('Failed to parse Gemini response:', narrativeResponse.text);
+      throw new Error('Gemini returned invalid JSON.');
     }
 
     responseJson.hasBirthData = hasBirthData;
     responseJson.culture = userData.archetypeRef.culture;
+    responseJson.physical_traits = physicalTraits;
 
     if (responseJson.hasBirthData) {
       const archetype = getArchetype(responseJson.archetype_name);
       if (archetype) {
         const imageRegionalStory = getRegionalStory(archetype.culture);
         const tonalCore = 'Frequency, communal harmony, and the high-view perspective. Subterranean wisdom and abyssal clarity.';
-        responseJson.visual_attire = augmentMythicPrompt(archetype, 'the subject', tonalCore, imageRegionalStory);
+        responseJson.visual_attire = augmentMythicPrompt(archetype, 'the subject', tonalCore, imageRegionalStory, physicalTraits);
       }
     }
 
