@@ -1,19 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { AppState, BirthData, OracleResult } from '../services/types';
 import { calculateCosmicFingerprint, selectArchetype } from '../services/cosmicCalc';
 import { generateMythopoeticBrief, generateMythicImage } from '../services/geminiService';
 import { saveReading } from '../services/dbService';
+import { supabase } from '../services/supabaseClient';
 
 // UI Components
 import ObsidianContainer from './ObsidianContainer';
 import InputForm from './InputForm';
 import LoadingOracle from './LoadingOracle';
 import ResultReveal from './ResultReveal';
+import Auth from './Auth';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [result, setResult] = useState<OracleResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionLoading(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    reset();
+  };
 
   const reset = () => {
     setResult(null);
@@ -100,9 +121,29 @@ const App: React.FC = () => {
     }
   };
 
+  if (sessionLoading) {
+    return <ObsidianContainer><div /></ObsidianContainer>;
+  }
+
+  if (!session) {
+    return <ObsidianContainer><Auth /></ObsidianContainer>;
+  }
+
   return (
     <ObsidianContainer>
-      {appState === AppState.IDLE && <InputForm onSubmit={handleInitiate} />}
+      {appState === AppState.IDLE && (
+        <>
+          <InputForm onSubmit={handleInitiate} />
+          <div className="text-center mt-6">
+            <button
+              onClick={signOut}
+              className="text-gray-500 text-[10px] tracking-widest uppercase hover:text-gold"
+            >
+              Sign Out
+            </button>
+          </div>
+        </>
+      )}
 
       {[AppState.ANALYZING, AppState.COMMUNING, AppState.MANIFESTING].includes(appState) && (
         <LoadingOracle state={appState} />

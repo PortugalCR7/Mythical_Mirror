@@ -1,90 +1,124 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { supabase } from './supabaseClient';
 import { OracleResult } from './types';
 
 /**
- * THE MEMORY VAULT (dbService.ts) - Hybrid Edition
- * Uses a Singleton Pattern for industrial-grade stability.
+ * THE MEMORY VAULT — Supabase edition.
+ * Readings live in the `readings` table (RLS-scoped to auth.uid()).
+ * Generated portraits live in the private `portraits` bucket at
+ * `{user_id}/{reading_id}.{ext}`. User reference photos are NOT stored.
  */
 
-interface OracleDB extends DBSchema {
-  readings: {
-    key: string;
-    value: OracleResult;
-    indexes: { 'by-date': number };
-  };
+const BUCKET = 'portraits';
+
+function dataUrlToBlob(dataUrl: string): { blob: Blob; ext: string } {
+  const m = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.*)$/);
+  if (!m) throw new Error('Invalid portrait data URL');
+  const mime = m[1];
+  const bytes = atob(m[2]);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  const ext = mime.split('/')[1].replace('jpeg', 'jpg');
+  return { blob: new Blob([arr], { type: mime }), ext };
 }
 
-const DB_NAME = 'mythic-oracle-db';
-const STORE_NAME = 'readings';
-
-class DatabaseSingleton {
-    private static instance: DatabaseSingleton;
-    private dbPromise: Promise<IDBPDatabase<OracleDB>> | null = null;
-    
-    private constructor() {}
-    
-    public static getInstance(): DatabaseSingleton {
-        if (!DatabaseSingleton.instance) {
-            DatabaseSingleton.instance = new DatabaseSingleton();
-        }
-        return DatabaseSingleton.instance;
-    }
-
-    private _init(): Promise<IDBPDatabase<OracleDB>> {
-        return openDB<OracleDB>(DB_NAME, 1, {
-            upgrade(db: IDBPDatabase<OracleDB>) {
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                    store.createIndex('by-date', 'timestamp');
-                }
-            },
-            terminated: () => {
-                console.warn('Vault connection lost. Resetting...');
-                this.dbPromise = null;
-            }
-        });
-    }
-
-    public async getConnection(): Promise<IDBPDatabase<OracleDB>> {
-        if (!this.dbPromise) {
-            this.dbPromise = this._init();
-        }
-        try {
-            return await this.dbPromise;
-        } catch (e) {
-            this.dbPromise = null;
-            return this.getConnection();
-        }
-    }
+async function uploadPortrait(userId: string, readingId: string, dataUrl: string): Promise<string> {
+  const { blob, ext } = dataUrlToBlob(dataUrl);
+  const path = `${userId}/${readingId}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
+    contentType: blob.type,
+    upsert: true,
+  });
+  if (error) throw error;
+  return path;
 }
 
-const dbInstance = DatabaseSingleton.getInstance();
+async function signedPortraitUrl(path: string): Promise<string | undefined> {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
+  if (error || !data) return undefined;
+  return data.signedUrl;
+}
 
-// Function name aligned with App.tsx
 export const saveReading = async (reading: OracleResult): Promise<void> => {
-    try {
-        const db = await dbInstance.getConnection();
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        await tx.store.put(reading);
-        await tx.done;
-        console.log(`[Vault] Revelation ${reading.id} secured.`);
-    } catch (error) {
-        console.error("Vaulting Error:", error);
-    }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  let portraitPath: string | null = null;
+  if (reading.generatedImage?.startsWith('data:image')) {
+    portraitPath = await uploadPortrait(user.id, reading.id, reading.generatedImage);
+  }
+
+  // Strip the user reference photo — explicit decision: don't store it.
+  const { image: _stripped, ...birthDataSanitized } = reading.birthData;
+
+  const { error } = await supabase.from('readings').insert({
+    id: reading.id,
+    user_id: user.id,
+    created_at: new Date(reading.timestamp).toISOString(),
+    birth_data: birthDataSanitized,
+    fingerprint: reading.fingerprint,
+    archetype: reading.archetype,
+    profile: reading.profile,
+    gift: reading.gift,
+    kin: reading.kin,
+    totem: reading.totem,
+    cosmic_readings: reading.cosmicReadings,
+    mythopoetic_brief: reading.mythopoeticBrief,
+    culture: reading.culture ?? null,
+    portrait_path: portraitPath,
+  });
+  if (error) throw error;
 };
 
-// Function name aligned for future History components
 export const getAllReadings = async (): Promise<OracleResult[]> => {
-    try {
-        const db = await dbInstance.getConnection();
-        return await db.getAllFromIndex(STORE_NAME, 'by-date');
-    } catch (error) {
-        console.error("History Retrieval Error:", error);
-        return [];
-    }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('readings')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('[Vault] History retrieval error:', error);
+    return [];
+  }
+
+  return Promise.all(
+    (data ?? []).map(async (r: any) => {
+      const portrait = r.portrait_path ? await signedPortraitUrl(r.portrait_path) : undefined;
+      return {
+        id: r.id,
+        timestamp: new Date(r.created_at).getTime(),
+        birthData: r.birth_data,
+        fingerprint: r.fingerprint,
+        archetype: r.archetype,
+        profile: r.profile,
+        gift: r.gift,
+        kin: r.kin,
+        totem: r.totem,
+        cosmicReadings: r.cosmic_readings,
+        mythopoeticBrief: r.mythopoetic_brief,
+        culture: r.culture ?? undefined,
+        generatedImage: portrait,
+      } as OracleResult;
+    })
+  );
 };
 
 export const deleteReading = async (id: string): Promise<void> => {
-    const db = await dbInstance.getConnection();
-    await db.delete(STORE_NAME, id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: list } = await supabase.storage.from(BUCKET).list(user.id);
+  const toDelete = (list ?? [])
+    .filter((f) => f.name.startsWith(id + '.'))
+    .map((f) => `${user.id}/${f.name}`);
+  if (toDelete.length) await supabase.storage.from(BUCKET).remove(toDelete);
+
+  const { error } = await supabase
+    .from('readings')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw error;
 };
