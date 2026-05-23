@@ -22,6 +22,9 @@ const FREE_READING_LIMIT = 3;
  * send, or null to proceed.
  */
 async function enforceReadingLimit(req: VercelRequest, res: VercelResponse) {
+  // The gate ships dormant — only enforce when explicitly switched on.
+  if (process.env.VITE_RATE_LIMIT_ENABLED !== 'true') return null;
+
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Authentication required.' });
@@ -37,6 +40,13 @@ async function enforceReadingLimit(req: VercelRequest, res: VercelResponse) {
 
   const { data: auth, error: authErr } = await sb.auth.getUser();
   if (authErr || !auth?.user) return res.status(401).json({ error: 'Invalid session.' });
+
+  // Permanent unlimited lane (admins / testers) survives even when the gate is on.
+  const unlimitedEmails = (process.env.VITE_RATE_LIMIT_UNLIMITED_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (auth.user.email && unlimitedEmails.includes(auth.user.email.toLowerCase())) return null;
 
   const { count, error: countErr } = await sb
     .from('readings')

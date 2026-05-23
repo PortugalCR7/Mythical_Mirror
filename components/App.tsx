@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { AppState, BirthData, OracleResult } from '../services/types';
 import { calculateCosmicFingerprint, selectArchetype } from '../services/cosmicCalc';
 import { generateMythopoeticBrief, generateMythicImage } from '../services/geminiService';
-import { saveReading, getReadingCount, FREE_READING_LIMIT } from '../services/dbService';
+import { saveReading, getReadingCount, FREE_READING_LIMIT, isUnlimited } from '../services/dbService';
 import { supabase } from '../services/supabaseClient';
 
 // UI Components
@@ -37,7 +37,8 @@ const App: React.FC = () => {
     else setReadingCount(0);
   }, [session]);
 
-  const limitReached = readingCount >= FREE_READING_LIMIT;
+  const unlimited = isUnlimited(session?.user?.email);
+  const limitReached = !unlimited && readingCount >= FREE_READING_LIMIT;
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -161,9 +162,11 @@ const App: React.FC = () => {
           ) : (
             <>
               <InputForm onSubmit={handleInitiate} />
-              <p className="text-center text-gray-600 text-[10px] tracking-widest uppercase mt-4">
-                {FREE_READING_LIMIT - readingCount} of {FREE_READING_LIMIT} readings remaining
-              </p>
+              {!unlimited && (
+                <p className="text-center text-gray-600 text-[10px] tracking-widest uppercase mt-4">
+                  {FREE_READING_LIMIT - readingCount} of {FREE_READING_LIMIT} readings remaining
+                </p>
+              )}
             </>
           )}
           <div className="text-center mt-6">
