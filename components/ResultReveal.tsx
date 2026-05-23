@@ -16,6 +16,41 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
   const [sharing, setSharing] = React.useState(false);
   const [layout, setLayout] = React.useState<ShareLayout>('descent');
 
+  // Resolve the portrait to a data URL for export. Fresh reveals are already
+  // data URLs (no-op); history portraits are cross-origin Supabase signed URLs
+  // that would taint the html-to-image canvas, so we fetch + inline them.
+  const rawPortrait = result.generatedImage || result.userImage;
+  const [exportPortrait, setExportPortrait] = React.useState<string | undefined>(
+    rawPortrait?.startsWith('data:') ? rawPortrait : undefined
+  );
+  React.useEffect(() => {
+    if (!rawPortrait || rawPortrait.startsWith('data:')) {
+      setExportPortrait(rawPortrait);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(rawPortrait, { mode: 'cors' });
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        if (!cancelled) setExportPortrait(dataUrl);
+      } catch (err) {
+        // CORS or network failure — fall back to the raw URL so the in-app
+        // preview still displays; export may taint, handled in sharePortrait.
+        if (!cancelled) setExportPortrait(rawPortrait);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rawPortrait]);
+
   const exportAsImage = async () => {
     const node = document.getElementById('mythic-card');
     if (node) {
@@ -287,7 +322,7 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
           className="rounded-lg overflow-hidden border border-gold/20 shadow-2xl"
         >
           <div style={{ transform: 'scale(0.25)', transformOrigin: 'top left' }}>
-            <ShareCard result={result} layout={layout} />
+            <ShareCard result={result} layout={layout} portrait={exportPortrait} />
           </div>
         </div>
       </div>
@@ -316,7 +351,7 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
 
       {/* OFF-SCREEN SHARE CARD (rasterized by sharePortrait) */}
       <div style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }} aria-hidden>
-        <ShareCard ref={shareRef} result={result} layout={layout} />
+        <ShareCard ref={shareRef} result={result} layout={layout} portrait={exportPortrait} />
       </div>
     </div>
   );

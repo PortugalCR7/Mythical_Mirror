@@ -6,6 +6,12 @@ export type ShareLayout = 'descent' | 'tablet' | 'band';
 interface Props {
   result: OracleResult;
   layout?: ShareLayout;
+  /**
+   * Pre-resolved portrait (data URL). History portraits arrive as cross-origin
+   * Supabase signed URLs that taint the html-to-image canvas; ResultReveal
+   * resolves them to a data URL and passes it here so rasterization succeeds.
+   */
+  portrait?: string;
 }
 
 /**
@@ -148,8 +154,8 @@ const frame = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   ...extra,
 });
 
-const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, layout = 'descent' }, ref) => {
-  const portrait = result.generatedImage || result.userImage;
+const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, layout = 'descent', portrait: portraitOverride }, ref) => {
+  const portrait = portraitOverride || result.generatedImage || result.userImage;
   const title = result.archetype;
   const oneLiner = result.mythopoeticBrief?.one_liner;
   const name = result.birthData?.name;
