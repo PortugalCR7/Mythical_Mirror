@@ -10,6 +10,24 @@ import { OracleResult } from './types';
 
 const BUCKET = 'portraits';
 
+// Free readings allowed per account before the monetization gate.
+// Mirror this value in api/generate-brief.ts (server-side enforcement).
+export const FREE_READING_LIMIT = 3;
+
+export const getReadingCount = async (): Promise<number> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  const { count, error } = await supabase
+    .from('readings')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+  if (error) {
+    console.error('[Vault] Count error:', error);
+    return 0;
+  }
+  return count ?? 0;
+};
+
 function dataUrlToBlob(dataUrl: string): { blob: Blob; ext: string } {
   const m = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.*)$/);
   if (!m) throw new Error('Invalid portrait data URL');
