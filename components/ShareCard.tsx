@@ -53,6 +53,7 @@ const Lineage: React.FC<{ culture?: string; style?: React.CSSProperties }> = ({ 
       fontSize: 24,
       textTransform: 'uppercase',
       textAlign: 'center',
+      textShadow: '0 2px 18px rgba(0,0,0,0.85)',
       ...style,
     }}
   >
@@ -185,6 +186,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, layout = 'd
     return (
       <div ref={ref} style={frame()}>
         <Portrait src={portrait} alt={title} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320, background: 'linear-gradient(to bottom, rgba(5,5,5,0.7), rgba(5,5,5,0))' }} />
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 760, background: 'linear-gradient(to top, rgba(5,5,5,0.92), rgba(5,5,5,0))' }} />
         {/* top eyebrow */}
         <div style={{ position: 'absolute', top: 110, left: 80, right: 80 }}>
@@ -227,6 +229,8 @@ const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, layout = 'd
       <div style={{ position: 'absolute', top: -260, left: '50%', transform: 'translateX(-50%)', width: 1000, height: 640, background: 'rgba(243,208,96,0.10)', filter: 'blur(180px)', pointerEvents: 'none' }} />
       {/* deep bottom scrim */}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1040, background: 'linear-gradient(to top, rgba(5,5,5,0.97) 22%, rgba(5,5,5,0.6) 55%, rgba(5,5,5,0))' }} />
+      {/* light top scrim for eyebrow legibility on bright skies */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 300, background: 'linear-gradient(to bottom, rgba(5,5,5,0.65), rgba(5,5,5,0))' }} />
       {/* top eyebrow */}
       <div style={{ position: 'absolute', top: 110, left: 80, right: 80 }}>
         <Lineage culture={culture} />
