@@ -67,14 +67,18 @@ Critical: do NOT regress this back to Imagen 3 / text-only rendering — Imagen 
 6. **Real astronomical calculations** — Moon sign, Nakshatra, Rising sign (requires birth time + location + ephemeris)
 
 ## What was done in the most recent session
-- Built roadmap #5 (share-optimized portrait export) — see roadmap entry above for the full feature description. Key files: `components/ShareCard.tsx` (the 1080×1920 card), `components/ResultReveal.tsx` (preview + share/export logic + cross-origin portrait resolution), `share-preview.html` / `share-preview.tsx` / `scripts/render-share-card.mjs` (headless render harness).
-- Explored 3 layouts (descent / tablet / band) against headless renders, then locked to **Descent** at the user's choice and removed the other two + the layout picker.
-- Merged PR #3 (`claude/share-portrait-card`) → `main`; confirmed working in a live reading. Final UI/UX polish intentionally deferred (function-first).
+Closed out the three open loops left from the share-card work:
+- **History export hardened (loop #1, most pertinent):** `sharePortrait` in `components/ResultReveal.tsx` no longer fails silently. A tainted-canvas `SecurityError` (cross-origin Supabase portrait that couldn't be inlined) now surfaces a user-facing message under the share buttons ("Could not render this saved portrait… try a fresh reading, or download the Full Revelation"); other failures get a generic retry message. The pre-fetch → data-URL resolution + `crossOrigin="anonymous"` img remain the happy path; this just makes the failure mode observable. Typecheck clean.
+- **PR #3 description updated (loop #2):** rewrote the merged PR #3 body to match the shipped 1080×1920 full-bleed Descent card (was still describing the original 1080×1350 circular design) and documented the preview, cross-origin resolution, and render harness.
+- **Supabase forks (loop #3):** confirmed resolved-enough; folded into roadmap #2 rather than tracked separately. No code change.
+
+### Prior session (roadmap #5 build, for context)
+- Built `components/ShareCard.tsx` (1080×1920 card), `ResultReveal.tsx` preview + share/export logic, and the `share-preview.*` / `scripts/render-share-card.mjs` headless harness.
+- Explored 3 layouts (descent / tablet / band), locked to **Descent**, removed the others + picker. Merged PR #3 → `main`.
 
 ## Open loops at session end
-- **#5 follow-up (cosmetic)**: PR #3 body still describes the original 1080×1350 circular card, not the final 1080×1920 Descent design. Harmless; update if it bothers you.
-- **#5 not independently verified**: the cross-origin *history* export path (Supabase signed URL → data URL) was only validated headlessly + on a fresh reading. Worth confirming a history-loaded reading exports cleanly (depends on Supabase Storage CORS allowing the fetch).
-- **Supabase**: env vars set; the three forks (auth method, image storage, IndexedDB migration) were resolved enough to wire auth + readings storage (PR #1 merged earlier). Revisit if deeper DB work is needed.
+- **All three prior open loops closed** this session — see "What was done" above.
+- **Remaining (needs your env, not code):** the cross-origin *history* export path now fails gracefully + visibly if Supabase Storage CORS blocks the fetch, but the happy path still hasn't been confirmed on a real history-loaded reading in the deployed app. One manual check: load a saved reading → Share Portrait → confirm a card renders (no red error line). If it errors, configure Supabase Storage CORS to allow the prod origin.
 
 ## Git
 - Production branch: `main`

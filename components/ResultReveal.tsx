@@ -14,6 +14,7 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
   const [viewState, setViewState] = React.useState<'SCRIPTURE' | 'MANIFESTATION'>('SCRIPTURE');
   const shareRef = React.useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = React.useState(false);
+  const [shareError, setShareError] = React.useState<string | null>(null);
 
   // Resolve the portrait to a data URL for export. Fresh reveals are already
   // data URLs (no-op); history portraits are cross-origin Supabase signed URLs
@@ -64,6 +65,7 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
   const sharePortrait = async () => {
     if (!shareRef.current || sharing) return;
     setSharing(true);
+    setShareError(null);
     try {
       // Ensure web fonts are loaded before rasterizing, or text falls back.
       if (document.fonts?.ready) await document.fonts.ready;
@@ -94,7 +96,16 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
       }
     } catch (err: any) {
       // AbortError = user dismissed the native share sheet; not an error.
-      if (err?.name !== 'AbortError') console.error('Share failed:', err);
+      if (err?.name !== 'AbortError') {
+        console.error('Share failed:', err);
+        // A SecurityError here means the portrait tainted the canvas — the
+        // cross-origin history image couldn't be inlined (Supabase Storage CORS).
+        setShareError(
+          err?.name === 'SecurityError'
+            ? 'Could not render this saved portrait for sharing. Try a fresh reading, or download the Full Revelation instead.'
+            : 'Could not conjure the share card. Please try again.'
+        );
+      }
     } finally {
       setSharing(false);
     }
@@ -326,6 +337,12 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
           <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Full Revelation</span>
         </button>
       </div>
+
+      {shareError && (
+        <p className="text-center text-red-400/80 text-xs tracking-wide -mt-8 mb-12 px-4 max-w-md mx-auto">
+          {shareError}
+        </p>
+      )}
 
       {/* OFF-SCREEN SHARE CARD (rasterized by sharePortrait) */}
       <div style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }} aria-hidden>
