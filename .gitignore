@@ -23,3 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 service-account-key.json
+scripts/out/

@@ -1,8 +1,9 @@
 import './ResultReveal.css';
 import React from 'react';
 import { OracleResult } from '../services/types';
-import { RefreshCcw, Download, Zap, Activity, Globe, Shield } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { RefreshCcw, Download, Zap, Activity, Globe, Shield, Share2 } from 'lucide-react';
+import { toPng, toBlob } from 'html-to-image';
+import ShareCard from './ShareCard';
 
 interface Props {
   result: OracleResult;
@@ -11,6 +12,43 @@ interface Props {
 
 const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
   const [viewState, setViewState] = React.useState<'SCRIPTURE' | 'MANIFESTATION'>('SCRIPTURE');
+  const shareRef = React.useRef<HTMLDivElement>(null);
+  const [sharing, setSharing] = React.useState(false);
+
+  // Resolve the portrait to a data URL for export. Fresh reveals are already
+  // data URLs (no-op); history portraits are cross-origin Supabase signed URLs
+  // that would taint the html-to-image canvas, so we fetch + inline them.
+  const rawPortrait = result.generatedImage || result.userImage;
+  const [exportPortrait, setExportPortrait] = React.useState<string | undefined>(
+    rawPortrait?.startsWith('data:') ? rawPortrait : undefined
+  );
+  React.useEffect(() => {
+    if (!rawPortrait || rawPortrait.startsWith('data:')) {
+      setExportPortrait(rawPortrait);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(rawPortrait, { mode: 'cors' });
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        if (!cancelled) setExportPortrait(dataUrl);
+      } catch (err) {
+        // CORS or network failure — fall back to the raw URL so the in-app
+        // preview still displays; export may taint, handled in sharePortrait.
+        if (!cancelled) setExportPortrait(rawPortrait);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rawPortrait]);
 
   const exportAsImage = async () => {
     const node = document.getElementById('mythic-card');
@@ -20,6 +58,45 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
       link.download = `revelation-${result.id}.png`;
       link.href = dataUrl;
       link.click();
+    }
+  };
+
+  const sharePortrait = async () => {
+    if (!shareRef.current || sharing) return;
+    setSharing(true);
+    try {
+      // Ensure web fonts are loaded before rasterizing, or text falls back.
+      if (document.fonts?.ready) await document.fonts.ready;
+
+      const blob = await toBlob(shareRef.current, {
+        cacheBust: true,
+        pixelRatio: 1,
+        backgroundColor: '#050505',
+      });
+      if (!blob) throw new Error('Could not render share card.');
+
+      const file = new File([blob], `mythical-mirror-${result.id}.png`, { type: 'image/png' });
+      const shareData: ShareData = {
+        files: [file],
+        title: result.archetype,
+        text: `I am ${result.archetype} — divined by The Mythical Mirror.`,
+      };
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share(shareData);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = file.name;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      // AbortError = user dismissed the native share sheet; not an error.
+      if (err?.name !== 'AbortError') console.error('Share failed:', err);
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -213,15 +290,46 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
         </div>
       </div>
 
+      {/* SHARE PREVIEW — live, scaled-down render of the actual story card */}
+      <div className="mt-16 flex flex-col items-center">
+        <span className="mythic-brief-label mb-6 block text-gold/50 tracking-[0.4em] text-xs uppercase">Your Story Card</span>
+
+        {/* Scaled preview: 1080×1920 card shown at 0.25 → 270×480 */}
+        <div
+          style={{ width: 270, height: 480 }}
+          className="rounded-lg overflow-hidden border border-gold/20 shadow-2xl"
+        >
+          <div style={{ transform: 'scale(0.25)', transformOrigin: 'top left' }}>
+            <ShareCard result={result} portrait={exportPortrait} />
+          </div>
+        </div>
+      </div>
+
       {/* SYSTEM CONTROLS */}
-      <div className="flex justify-center gap-12 mt-12 pb-12">
+      <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 mt-12 pb-12">
         <button onClick={onReset} className="flex items-center gap-2 text-gray-400 hover:text-white transition-all group">
           <RefreshCcw size={16} className="group-hover:rotate-180 transition-transform duration-700" />
           <span className="text-[10px] uppercase tracking-[0.2em]">New Inquiry</span>
         </button>
-        <button onClick={exportAsImage} className="px-8 py-3 border border-gold/40 text-gold rounded-full hover:bg-gold hover:text-black transition-all">
-          <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Download Revelation</span>
+        <button
+          onClick={sharePortrait}
+          disabled={sharing}
+          className="flex items-center gap-2 px-8 py-3 bg-gold text-black rounded-full hover:bg-gold/80 transition-all disabled:opacity-50"
+        >
+          <Share2 size={14} />
+          <span className="text-[10px] uppercase tracking-[0.2em] font-bold">
+            {sharing ? 'Conjuring…' : 'Share Portrait'}
+          </span>
         </button>
+        <button onClick={exportAsImage} className="flex items-center gap-2 px-8 py-3 border border-gold/40 text-gold rounded-full hover:bg-gold hover:text-black transition-all">
+          <Download size={14} />
+          <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Full Revelation</span>
+        </button>
+      </div>
+
+      {/* OFF-SCREEN SHARE CARD (rasterized by sharePortrait) */}
+      <div style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }} aria-hidden>
+        <ShareCard ref={shareRef} result={result} portrait={exportPortrait} />
       </div>
     </div>
   );
