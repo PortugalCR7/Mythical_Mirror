@@ -1,11 +1,8 @@
 import React from 'react';
 import { OracleResult } from '../services/types';
 
-export type ShareLayout = 'descent' | 'tablet' | 'band';
-
 interface Props {
   result: OracleResult;
-  layout?: ShareLayout;
   /**
    * Pre-resolved portrait (data URL). History portraits arrive as cross-origin
    * Supabase signed URLs that taint the html-to-image canvas; ResultReveal
@@ -21,11 +18,6 @@ interface Props {
  * costume, props and culturally-specific background stay visible (the whole
  * point of the image-to-image pipeline). Rendered off-screen and rasterized
  * via html-to-image. Inline px styling keeps output viewport-independent.
- *
- * Three layouts share the same portrait + palette but compose differently:
- *   descent — bottom-weighted, clean image up top, all type stacked low
- *   tablet  — symmetric gold-hairline frame, type split top + bottom
- *   band    — editorial translucent band across the lower third
  */
 const GOLD = '#F3D060';
 const OBSIDIAN = '#050505';
@@ -154,80 +146,14 @@ const frame = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   ...extra,
 });
 
-const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, layout = 'descent', portrait: portraitOverride }, ref) => {
+const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, portrait: portraitOverride }, ref) => {
   const portrait = portraitOverride || result.generatedImage || result.userImage;
   const title = result.archetype;
   const oneLiner = result.mythopoeticBrief?.one_liner;
   const name = result.birthData?.name;
   const culture = result.culture;
 
-  // LAYOUT: TABLET — symmetric gold-hairline frame, type split top + bottom.
-  if (layout === 'tablet') {
-    return (
-      <div ref={ref} style={frame()}>
-        <Portrait src={portrait} alt={title} />
-        {/* top + bottom scrims */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 520, background: 'linear-gradient(to bottom, rgba(5,5,5,0.92), rgba(5,5,5,0))' }} />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 620, background: 'linear-gradient(to top, rgba(5,5,5,0.95), rgba(5,5,5,0))' }} />
-        {/* inset hairline frame */}
-        <div style={{ position: 'absolute', inset: 40, border: '2px solid rgba(243,208,96,0.45)', pointerEvents: 'none' }} />
-        {/* top block */}
-        <div style={{ position: 'absolute', top: 96, left: 80, right: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
-          <Lineage culture={culture} />
-          <Title text={title} size={96} />
-        </div>
-        {/* bottom block */}
-        <div style={{ position: 'absolute', bottom: 96, left: 80, right: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 36 }}>
-          {oneLiner && <OneLiner text={oneLiner} />}
-          {name && <Name text={name} />}
-          <div style={{ width: 120, height: 1, background: 'rgba(243,208,96,0.4)' }} />
-          <Wordmark />
-        </div>
-      </div>
-    );
-  }
-
-  // LAYOUT: BAND — editorial translucent band across the lower third.
-  if (layout === 'band') {
-    return (
-      <div ref={ref} style={frame()}>
-        <Portrait src={portrait} alt={title} />
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320, background: 'linear-gradient(to bottom, rgba(5,5,5,0.7), rgba(5,5,5,0))' }} />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 760, background: 'linear-gradient(to top, rgba(5,5,5,0.92), rgba(5,5,5,0))' }} />
-        {/* top eyebrow */}
-        <div style={{ position: 'absolute', top: 110, left: 80, right: 80 }}>
-          <Lineage culture={culture} />
-        </div>
-        {/* central band */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 70,
-            right: 70,
-            bottom: 320,
-            padding: '56px 48px',
-            backgroundColor: 'rgba(5,5,5,0.55)',
-            borderTop: '2px solid rgba(243,208,96,0.5)',
-            borderBottom: '2px solid rgba(243,208,96,0.5)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 32,
-          }}
-        >
-          <Title text={title} size={100} />
-          {oneLiner && <OneLiner text={oneLiner} />}
-        </div>
-        {/* bottom block */}
-        <div style={{ position: 'absolute', bottom: 90, left: 80, right: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
-          {name && <Name text={name} />}
-          <Wordmark />
-        </div>
-      </div>
-    );
-  }
-
-  // LAYOUT: DESCENT (default) — bottom-weighted, all type stacked low.
+  // DESCENT — bottom-weighted: clean image up top, all type stacked low.
   return (
     <div ref={ref} style={frame()}>
       <Portrait src={portrait} alt={title} />

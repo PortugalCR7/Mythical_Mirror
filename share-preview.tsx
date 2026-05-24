@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import ShareCard, { ShareLayout } from './components/ShareCard';
+import ShareCard from './components/ShareCard';
 import { OracleResult } from './services/types';
 
 // A deliberately "busy" stand-in portrait (bright sky top → worst case for
@@ -63,11 +63,8 @@ const mockResult: OracleResult = {
   generatedImage: SAMPLE_PORTRAIT,
 };
 
-const params = new URLSearchParams(window.location.search);
-const layout = (params.get('layout') as ShareLayout) || 'descent';
-
 const root = ReactDOM.createRoot(document.getElementById('card-root')!);
-root.render(<ShareCard result={mockResult} layout={layout} />);
+root.render(<ShareCard result={mockResult} />);
 
 // Signal readiness to the headless renderer once fonts + portrait are settled.
 (async () => {

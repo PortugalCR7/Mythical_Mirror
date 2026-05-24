@@ -3,7 +3,7 @@ import React from 'react';
 import { OracleResult } from '../services/types';
 import { RefreshCcw, Download, Zap, Activity, Globe, Shield, Share2 } from 'lucide-react';
 import { toPng, toBlob } from 'html-to-image';
-import ShareCard, { ShareLayout } from './ShareCard';
+import ShareCard from './ShareCard';
 
 interface Props {
   result: OracleResult;
@@ -14,7 +14,6 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
   const [viewState, setViewState] = React.useState<'SCRIPTURE' | 'MANIFESTATION'>('SCRIPTURE');
   const shareRef = React.useRef<HTMLDivElement>(null);
   const [sharing, setSharing] = React.useState(false);
-  const [layout, setLayout] = React.useState<ShareLayout>('descent');
 
   // Resolve the portrait to a data URL for export. Fresh reveals are already
   // data URLs (no-op); history portraits are cross-origin Supabase signed URLs
@@ -295,34 +294,13 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
       <div className="mt-16 flex flex-col items-center">
         <span className="mythic-brief-label mb-6 block text-gold/50 tracking-[0.4em] text-xs uppercase">Your Story Card</span>
 
-        {/* Layout picker */}
-        <div className="flex gap-2 mb-6">
-          {([
-            ['descent', 'Descent'],
-            ['tablet', 'Tablet'],
-            ['band', 'Band'],
-          ] as [ShareLayout, string][]).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setLayout(key)}
-              className={`px-5 py-2 rounded-full text-[10px] uppercase tracking-[0.2em] font-bold transition-all border ${
-                layout === key
-                  ? 'bg-gold text-black border-gold'
-                  : 'border-gold/30 text-gold/70 hover:border-gold/60'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
         {/* Scaled preview: 1080×1920 card shown at 0.25 → 270×480 */}
         <div
           style={{ width: 270, height: 480 }}
           className="rounded-lg overflow-hidden border border-gold/20 shadow-2xl"
         >
           <div style={{ transform: 'scale(0.25)', transformOrigin: 'top left' }}>
-            <ShareCard result={result} layout={layout} portrait={exportPortrait} />
+            <ShareCard result={result} portrait={exportPortrait} />
           </div>
         </div>
       </div>
@@ -351,7 +329,7 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
 
       {/* OFF-SCREEN SHARE CARD (rasterized by sharePortrait) */}
       <div style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }} aria-hidden>
-        <ShareCard ref={shareRef} result={result} layout={layout} portrait={exportPortrait} />
+        <ShareCard ref={shareRef} result={result} portrait={exportPortrait} />
       </div>
     </div>
   );

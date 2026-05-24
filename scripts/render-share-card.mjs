@@ -13,18 +13,15 @@ mkdirSync(OUT, { recursive: true });
 
 const EXECUTABLE = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const BASE = process.env.PREVIEW_BASE || 'http://localhost:3000';
-const LAYOUTS = ['descent', 'tablet', 'band'];
 
 const browser = await chromium.launch({ executablePath: EXECUTABLE });
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
 
-for (const layout of LAYOUTS) {
-  await page.goto(`${BASE}/share-preview.html?layout=${layout}`, { waitUntil: 'networkidle' });
-  await page.waitForFunction(() => window.__CARD_READY__ === true, { timeout: 15000 });
-  const card = page.locator('#card-root > div');
-  await card.screenshot({ path: join(OUT, `${layout}.png`) });
-  console.log(`rendered ${layout}.png`);
-}
+await page.goto(`${BASE}/share-preview.html`, { waitUntil: 'networkidle' });
+await page.waitForFunction(() => window.__CARD_READY__ === true, { timeout: 15000 });
+const card = page.locator('#card-root > div');
+await card.screenshot({ path: join(OUT, 'descent.png') });
+console.log('rendered descent.png');
 
 await browser.close();
 console.log('done');
