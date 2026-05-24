@@ -63,24 +63,20 @@ Critical: do NOT regress this back to Imagen 3 / text-only rendering — Imagen 
 2. **Supabase auth + DB** — `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` set in Vercel; schema + RLS + wiring not started. Three decisions needed from user before starting: (a) auth method (email/password vs magic link vs Google OAuth), (b) image storage (Supabase Storage bucket vs inline base64), (c) drop existing IndexedDB readings or migrate up
 3. **Rate limiting** — per user account (3 free readings gate before monetization decision)
 4. ~~**Two-phase biometric pipeline**~~ — DONE differently than originally planned: instead of "Vision describes face → Imagen invents new face matching description", we switched to true image-to-image via Gemini 2.5 Flash Image. Vision still extracts structured traits as a prompt enhancer, but the reference photo flows all the way through to the renderer.
-5. **Share-optimized portrait export** — portrait-format card (name + archetype + one-liner) optimized for social sharing
+5. ~~**Share-optimized portrait export**~~ — DONE (PR #3 merged to `main`, confirmed working in a live reading). 1080×1920 (9:16) story card, single "Descent" layout: full-bleed mythic portrait + obsidian→gold scrims carrying archetype title, one-liner, name, and "The Mythical Mirror" wordmark/URL watermark. In-app "Your Story Card" preview renders below the reading; Share Portrait button rasterizes via html-to-image → Web Share API (mobile) / download (desktop). Cross-origin history portraits (Supabase signed URLs) are fetched + inlined to data URLs before rasterizing so export doesn't taint the canvas. Headless render harness: `share-preview.html` + `share-preview.tsx` + `npm run render:cards` (Playwright, env-overridable `CHROME_PATH`; output PNGs gitignored). Final UI/UX polish deferred — function-first.
 6. **Real astronomical calculations** — Moon sign, Nakshatra, Rising sign (requires birth time + location + ephemeris)
 
 ## What was done in the most recent session
-- Switched image renderer from `imagen-3.0-generate-001` (text-only) → `gemini-2.5-flash-image` (true image-to-image). Imagen could not see the photo, which is why local rendering was producing generic mythic faces while AI Studio (which uses Flash Image) preserves likeness.
-- Swapped SDK: `@google-cloud/vertexai` → `@google/genai`. Auth went from service-account-JSON to a single `GEMINI_API_KEY` env var.
-- Hoisted Gemini Vision trait extraction up into the brief endpoint, running in parallel with narrative generation. Pipeline went from 3 sequential round-trips → 2.
-- Brief endpoint now bakes structured `PHYSICAL LIKENESS (preserve exactly): …` directive into the assembled image prompt.
-- `vercel.json`: pinned functions to `iad1`, bumped image function timeout to 120s, included `jsons/**` for the brief function bundle.
-- Merged `claude/fix-imagen-image-to-image-J0wj8` → `main`. Vercel auto-deploys on push to main.
+- Built roadmap #5 (share-optimized portrait export) — see roadmap entry above for the full feature description. Key files: `components/ShareCard.tsx` (the 1080×1920 card), `components/ResultReveal.tsx` (preview + share/export logic + cross-origin portrait resolution), `share-preview.html` / `share-preview.tsx` / `scripts/render-share-card.mjs` (headless render harness).
+- Explored 3 layouts (descent / tablet / band) against headless renders, then locked to **Descent** at the user's choice and removed the other two + the layout picker.
+- Merged PR #3 (`claude/share-portrait-card`) → `main`; confirmed working in a live reading. Final UI/UX polish intentionally deferred (function-first).
 
 ## Open loops at session end
-- **Awaiting user**: rotate the leaked Gemini API key (was pasted in chat), add fresh `GEMINI_API_KEY` to Vercel env vars (Production + Preview), trigger a redeploy, share build logs.
-- **Awaiting verification**: no live request has hit the new `@google/genai` + Flash Image pipeline yet. First successful deploy needs a smoke test — confirm `model` field in `/api/generate-mythic-image` response equals `gemini-2.5-flash-image`, and the rendered portrait actually preserves the user's likeness (compare against AI Studio reference outputs the user shared).
-- **Possible follow-up**: if `gemini-2.5-flash-image` returns a model-not-found error, set Vercel env var `MYTHIC_IMAGE_MODEL=gemini-2.5-flash-image-preview` to use the preview tier instead.
-- **Supabase**: env vars set, but the three forks (auth method, image storage, IndexedDB migration) haven't been answered. Schema and wiring blocked on those answers.
+- **#5 follow-up (cosmetic)**: PR #3 body still describes the original 1080×1350 circular card, not the final 1080×1920 Descent design. Harmless; update if it bothers you.
+- **#5 not independently verified**: the cross-origin *history* export path (Supabase signed URL → data URL) was only validated headlessly + on a fresh reading. Worth confirming a history-loaded reading exports cleanly (depends on Supabase Storage CORS allowing the fetch).
+- **Supabase**: env vars set; the three forks (auth method, image storage, IndexedDB migration) were resolved enough to wire auth + readings storage (PR #1 merged earlier). Revisit if deeper DB work is needed.
 
 ## Git
 - Production branch: `main`
-- Most recent feature branch: `claude/fix-imagen-image-to-image-J0wj8` (merged)
+- Most recent feature branch: `claude/share-portrait-card` (merged via PR #3)
 - Don't auto-create PRs — direct merges are fine when user asks for them
