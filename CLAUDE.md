@@ -78,7 +78,8 @@ Closed out the three open loops left from the share-card work:
 
 ## Open loops at session end
 - **All three prior open loops closed** this session — see "What was done" above.
-- **Remaining (needs your env, not code):** the cross-origin *history* export path now fails gracefully + visibly if Supabase Storage CORS blocks the fetch, but the happy path still hasn't been confirmed on a real history-loaded reading in the deployed app. One manual check: load a saved reading → Share Portrait → confirm a card renders (no red error line). If it errors, configure Supabase Storage CORS to allow the prod origin.
+- **History export now confirmed end-to-end:** a real history-loaded reading exported a card cleanly in the deployed app (no tainted-canvas error), so the cross-origin Supabase signed URL → data URL path works and Storage CORS is allowing the fetch. The graceful-failure surface added this session is the safety net, not the primary path.
+- **No open loops remain.** Next up is roadmap #6 (real astronomical calculations).
 
 ## Git
 - Production branch: `main`
