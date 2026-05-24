@@ -135,7 +135,7 @@ const InputForm: React.FC<Props> = ({ onSubmit }) => {
 
             {/* Origin Point */}
             <div>
-                <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple mb-3 font-serif">Origin Point</label>
+                <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple mb-3 font-serif">Birthplace</label>
                 <input
                     type="text"
                     placeholder="CITY, COUNTRY"

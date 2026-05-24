@@ -30,6 +30,10 @@ export interface CosmicFingerprint {
   bazi?: string;
   vedic?: string;
   nakshatra?: string;
+  moonSign?: string;
+  risingSign?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ArchetypeData {

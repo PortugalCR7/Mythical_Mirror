@@ -156,6 +156,21 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
           <p className="text-gold/60 italic tracking-widest text-sm uppercase">
             {result.mythopoeticBrief.one_liner}
           </p>
+
+          {/* CELESTIAL SIGNATURE — the real ephemeris-derived placements */}
+          {(result.fingerprint?.sunSignArchetype || result.fingerprint?.moonSign || result.fingerprint?.risingSign) && (
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.25em] text-gray-400">
+              {result.fingerprint?.sunSignArchetype && (
+                <span><span className="text-gold/70">Sun</span> {result.fingerprint.sunSignArchetype}</span>
+              )}
+              {result.fingerprint?.moonSign && (
+                <span><span className="text-gold/70">Moon</span> {result.fingerprint.moonSign}</span>
+              )}
+              {result.fingerprint?.risingSign && (
+                <span><span className="text-gold/70">Rising</span> {result.fingerprint.risingSign}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* LOST SCRIPTURE: The Descent (Fade In 1 - Priority) */}

@@ -75,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         DATA POINTS & MYTHIC BRIDGE:
         - VEDIC CALIBRATION: The 'Nakshatra' (Lunar Mansion) is the primary Vedic anchor. If the user's data is missing or 'N/A', assume a "Noon-Standard" calculation to determine the likely Nakshatra. NEVER return 'N/A' or 'Unknown'. Always provide a full mythic reading.
+        - CELESTIAL BODIES (use the real placements in the data if present): treat 'moonSign' as the "Lunar Throne" (the soul's inner tides/emotional waters) and 'risingSign' as the "Ascendant Mask" (the face the world first beholds). Weave both, where present, into the Soul Level reading and the Descent.
         - DYNAMIC NUMEROLOGY (Life Path): Explain HOW this specific vibration empowers the primary Archetype. Do not just list the number.
         - BAZI ELEVATION (Mythic Emissary): Transform the Pillar (e.g. 'Water Pig') into a "Mythic Emissary". Focus on the dynamic interaction between the Element and the Animal.
         - SUN SIGN DEPTH (Solar Hearth): Interpret the Western Sun Sign as the "Solar Hearth" - the fuel that burns within to power the Archetype.

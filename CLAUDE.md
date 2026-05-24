@@ -36,8 +36,15 @@ A mythic oracle web app. Users enter birth data + photo → the app calculates a
 - Mayan Tzolkin (GMT correlation, Aug 11 1999 = 1 Imix anchor)
 - Bazi Year Pillar (60-year stem/branch cycle, anchored to 4 CE)
 
-**Hash-based** (require astronomical computation to make real):
-- Human Design profile, Gene Key gift, Animal Totem, Elemental Clan, Soul Node, Ruling Planet, Nakshatra
+**Real astronomical calculations** (ephemeris via `astronomy-engine`, in `services/cosmicCalc.ts` → `computeAstroPlacements`):
+- Moon Sign (tropical geocentric Moon ecliptic longitude)
+- Nakshatra + Pada (sidereal Moon longitude − Lahiri ayanāṃśa, 27 mansions)
+- Rising Sign / Ascendant (RAMC from `SiderealTime` + observer lat/lon, classic atan2 ascendant formula)
+- Ruling Planet (traditional domicile ruler of the Ascendant — the chart ruler)
+- Birthplace is resolved to lat/lon + IANA timezone via Open-Meteo's keyless geocoding API; local birth time → UTC via `Intl`. Verified against the Einstein chart (Sun Pisces, Moon Sagittarius, 11.6° Cancer rising). On any failure (bad city, geocoding/network down) the affected fields fall back to the legacy hash values so a reading is always produced.
+
+**Still hash-based** (esoteric systems with no direct ephemeris mapping):
+- Human Design profile, Gene Key gift, Animal Totem, Elemental Clan, Soul Node
 
 ## Image pipeline (the load-bearing one)
 The whole product hinges on this: **the user's actual face must appear inside the archetype**, not a generic mythic face with the user's face pasted on. AI Studio's reference outputs (Shiva, Aztec lord, Costa Rican elder, Odin, Finnic bard) prove the bar.
@@ -64,9 +71,18 @@ Critical: do NOT regress this back to Imagen 3 / text-only rendering — Imagen 
 3. **Rate limiting** — per user account (3 free readings gate before monetization decision)
 4. ~~**Two-phase biometric pipeline**~~ — DONE differently than originally planned: instead of "Vision describes face → Imagen invents new face matching description", we switched to true image-to-image via Gemini 2.5 Flash Image. Vision still extracts structured traits as a prompt enhancer, but the reference photo flows all the way through to the renderer.
 5. ~~**Share-optimized portrait export**~~ — DONE (PR #3 merged to `main`, confirmed working in a live reading). 1080×1920 (9:16) story card, single "Descent" layout: full-bleed mythic portrait + obsidian→gold scrims carrying archetype title, one-liner, name, and "The Mythical Mirror" wordmark/URL watermark. In-app "Your Story Card" preview renders below the reading; Share Portrait button rasterizes via html-to-image → Web Share API (mobile) / download (desktop). Cross-origin history portraits (Supabase signed URLs) are fetched + inlined to data URLs before rasterizing so export doesn't taint the canvas. Headless render harness: `share-preview.html` + `share-preview.tsx` + `npm run render:cards` (Playwright, env-overridable `CHROME_PATH`; output PNGs gitignored). Final UI/UX polish deferred — function-first.
-6. **Real astronomical calculations** — Moon sign, Nakshatra, Rising sign (requires birth time + location + ephemeris)
+6. ~~**Real astronomical calculations**~~ — DONE. Moon sign, Nakshatra (+ Pada), Rising sign, and Ruling Planet are now computed from a real ephemeris (`astronomy-engine`) rather than hashed. Birthplace → lat/lon + timezone via Open-Meteo keyless geocoding; "Origin Point" field renamed "Birthplace". Real placements surface in a "Celestial Signature" strip (Sun · Moon · Rising) in `ResultReveal` and are woven into the narrative (Moon = "Lunar Throne", Rising = "Ascendant Mask"). Graceful hash fallback if geocoding is unavailable.
 
 ## What was done in the most recent session
+Shipped roadmap #6 — **real astronomical calculations** (replacing hash-based placements):
+- `services/cosmicCalc.ts`: added `computeAstroPlacements` (Open-Meteo geocoding → ephemeris). `calculateCosmicFingerprint` is now **async** (one `await` added at `components/App.tsx:48`). Real Moon sign, Nakshatra+Pada, Rising sign, and chart-ruler Ruling Planet; hash fallback on failure.
+- `services/types.ts`: `CosmicFingerprint` gained `moonSign`, `risingSign`, `latitude`, `longitude`.
+- `components/InputForm.tsx`: "Origin Point" → "Birthplace".
+- `components/ResultReveal.tsx`: "Celestial Signature" strip (Sun · Moon · Rising) under the one-liner.
+- `api/generate-brief.ts` + `server/server.js`: prompt now treats `moonSign`/`risingSign` as Lunar Throne / Ascendant Mask.
+- New dep: `astronomy-engine`. Math verified against the Einstein chart. Typecheck + `npm run build` clean.
+
+### Earlier this session
 Closed out the three open loops left from the share-card work:
 - **History export hardened (loop #1, most pertinent):** `sharePortrait` in `components/ResultReveal.tsx` no longer fails silently. A tainted-canvas `SecurityError` (cross-origin Supabase portrait that couldn't be inlined) now surfaces a user-facing message under the share buttons ("Could not render this saved portrait… try a fresh reading, or download the Full Revelation"); other failures get a generic retry message. The pre-fetch → data-URL resolution + `crossOrigin="anonymous"` img remain the happy path; this just makes the failure mode observable. Typecheck clean.
 - **PR #3 description updated (loop #2):** rewrote the merged PR #3 body to match the shipped 1080×1920 full-bleed Descent card (was still describing the original 1080×1350 circular design) and documented the preview, cross-origin resolution, and render harness.
@@ -77,9 +93,9 @@ Closed out the three open loops left from the share-card work:
 - Explored 3 layouts (descent / tablet / band), locked to **Descent**, removed the others + picker. Merged PR #3 → `main`.
 
 ## Open loops at session end
-- **All three prior open loops closed** this session — see "What was done" above.
-- **History export now confirmed end-to-end:** a real history-loaded reading exported a card cleanly in the deployed app (no tainted-canvas error), so the cross-origin Supabase signed URL → data URL path works and Storage CORS is allowing the fetch. The graceful-failure surface added this session is the safety net, not the primary path.
-- **No open loops remain.** Next up is roadmap #6 (real astronomical calculations).
+- **Share-card loops:** all closed earlier this session; history export confirmed end-to-end in the deployed app.
+- **Roadmap #6 (real astronomy):** code shipped to branch `claude/stoic-goodall-P2z0d` (Vercel preview build). Not yet end-to-end-verified in a live browser reading — worth confirming that (a) Open-Meteo geocoding is reachable from the deploy env's network policy, and (b) a real reading shows plausible Moon/Rising in the Celestial Signature strip. Then merge to `main` for prod.
+- **Accuracy caveats (acceptable, noted):** ayanāṃśa is a linear precession approximation (~arcmin-accurate, fine for 13.3°-wide nakshatras); timezone offset uses a single Intl correction pass (a birth at the exact DST cusp could be off by an hour); geocoding takes the top Open-Meteo match on the city token before the first comma.
 
 ## Git
 - Production branch: `main`

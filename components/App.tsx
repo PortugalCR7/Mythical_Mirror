@@ -45,7 +45,7 @@ const App: React.FC = () => {
   const handleInitiate = async (data: BirthData) => {
     setAppState(AppState.ANALYZING);
     try {
-      const fingerprint = calculateCosmicFingerprint(data);
+      const fingerprint = await calculateCosmicFingerprint(data);
       const matchedArchetype = selectArchetype(fingerprint, data.gender);
 
       setAppState(AppState.COMMUNING);
