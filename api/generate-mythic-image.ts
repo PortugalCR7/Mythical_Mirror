@@ -4,6 +4,11 @@ import { GoogleGenAI } from '@google/genai';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const IMAGE_MODEL = process.env.MYTHIC_IMAGE_MODEL || 'gemini-2.5-flash-image';
+// Portrait output tuned for the 1080×1920 (9:16) share card — generate
+// natively at that aspect so crowns/headdresses/costume aren't cropped, at 2K
+// so the long edge covers the card height without upscaling. Env-overridable.
+const IMAGE_ASPECT_RATIO = process.env.MYTHIC_IMAGE_ASPECT || '9:16';
+const IMAGE_SIZE = process.env.MYTHIC_IMAGE_SIZE || '2K';
 
 function makeClient() {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -58,7 +63,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const response = await ai.models.generateContent({
           model: IMAGE_MODEL,
           contents: [{ role: 'user', parts }],
-          config: { responseModalities: ['IMAGE'] },
+          config: {
+            responseModalities: ['IMAGE'],
+            imageConfig: { aspectRatio: IMAGE_ASPECT_RATIO, imageSize: IMAGE_SIZE },
+          },
         });
         finalImage = extractImageFromResponse(response);
         if (!finalImage) throw new Error('Flash Image returned no image data.');

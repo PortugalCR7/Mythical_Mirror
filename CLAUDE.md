@@ -55,7 +55,7 @@ Flow:
    - Narrative generation (text only) → returns the mythopoetic brief JSON.
    - Vision trait extraction (photo + `TRAIT_EXTRACTION_PROMPT`) → returns structured JSON: `skinTone, eyeShape, eyeColor, faceShape, hair*, facialHair, ageRange, distinguishingFeatures, …`.
 3. Brief assembles the final image prompt via `augmentMythicPrompt(archetype, "the subject", tonalCore, regionalStory, physicalTraits)` — which produces the layered prompt with a `PHYSICAL LIKENESS (preserve exactly): …` directive baked in.
-4. `/api/generate-mythic-image` takes `{ visualDescription, userImage }`, calls `gemini-2.5-flash-image` with `responseModalities: ['IMAGE']` and the reference photo as an `inlineData` part. The photo carries the likeness; the prompt directs the transfiguration.
+4. `/api/generate-mythic-image` takes `{ visualDescription, userImage }`, calls `gemini-2.5-flash-image` with `responseModalities: ['IMAGE']`, `imageConfig: { aspectRatio: '9:16', imageSize: '2K' }`, and the reference photo as an `inlineData` part. The photo carries the likeness; the prompt directs the transfiguration. Output is generated natively at 9:16 / 2K so it fills the 1080×1920 share card without center-cropping crowns/headdresses/costume. All three image knobs are env-overridable: `MYTHIC_IMAGE_MODEL`, `MYTHIC_IMAGE_ASPECT`, `MYTHIC_IMAGE_SIZE`.
 
 Critical: do NOT regress this back to Imagen 3 / text-only rendering — Imagen can't see the photo.
 
@@ -74,6 +74,11 @@ Critical: do NOT regress this back to Imagen 3 / text-only rendering — Imagen 
 6. ~~**Real astronomical calculations**~~ — DONE. Moon sign, Nakshatra (+ Pada), Rising sign, and Ruling Planet are now computed from a real ephemeris (`astronomy-engine`) rather than hashed. Birthplace → lat/lon + timezone via Open-Meteo keyless geocoding; "Origin Point" field renamed "Birthplace". Real placements surface in a "Celestial Signature" strip (Sun · Moon · Rising) in `ResultReveal` and are woven into the narrative (Moon = "Lunar Throne", Rising = "Ascendant Mask"). Graceful hash fallback if geocoding is unavailable.
 
 ## What was done in the most recent session
+**Image model tuned for optimal output:** `api/generate-mythic-image.ts` + `server/server.js` now pass `imageConfig: { aspectRatio: '9:16', imageSize: '2K' }` to `gemini-2.5-flash-image`. Previously no `imageConfig` → square ~1K output center-cropped into the 9:16 share card (lopping off headdresses/costume). Now native 9:16 @ 2K. Env-overridable via `MYTHIC_IMAGE_ASPECT` / `MYTHIC_IMAGE_SIZE`. Typecheck + build clean.
+
+**UI/UX refinement track:** opened but intentionally not started — waiting on screenshots from the user before touching any reveal/input/loading/share-card visuals.
+
+### Prior in this session
 Shipped roadmap #6 — **real astronomical calculations** (replacing hash-based placements):
 - `services/cosmicCalc.ts`: added `computeAstroPlacements` (Open-Meteo geocoding → ephemeris). `calculateCosmicFingerprint` is now **async** (one `await` added at `components/App.tsx:48`). Real Moon sign, Nakshatra+Pada, Rising sign, and chart-ruler Ruling Planet; hash fallback on failure.
 - `services/types.ts`: `CosmicFingerprint` gained `moonSign`, `risingSign`, `latitude`, `longitude`.

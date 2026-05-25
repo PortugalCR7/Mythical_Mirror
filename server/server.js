@@ -31,6 +31,8 @@ if (!apiKey) {
 const ai = new GoogleGenAI({ apiKey });
 const TEXT_MODEL = 'gemini-2.5-flash';
 const IMAGE_MODEL = process.env.MYTHIC_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const IMAGE_ASPECT_RATIO = process.env.MYTHIC_IMAGE_ASPECT || '9:16';
+const IMAGE_SIZE = process.env.MYTHIC_IMAGE_SIZE || '2K';
 
 function parseMaybeJson(text) {
     if (!text) return null;
@@ -256,7 +258,10 @@ app.post('/api/generate-mythic-image', async (req, res) => {
                 const response = await ai.models.generateContent({
                     model: IMAGE_MODEL,
                     contents: [{ role: 'user', parts }],
-                    config: { responseModalities: ['IMAGE'] },
+                    config: {
+                        responseModalities: ['IMAGE'],
+                        imageConfig: { aspectRatio: IMAGE_ASPECT_RATIO, imageSize: IMAGE_SIZE },
+                    },
                 });
                 finalImage = extractImageFromResponse(response);
                 if (!finalImage) throw new Error('Flash Image returned no image data.');
