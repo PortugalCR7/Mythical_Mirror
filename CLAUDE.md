@@ -102,6 +102,24 @@ Closed out the three open loops left from the share-card work:
 - **Roadmap #6 (real astronomy):** code shipped to branch `claude/stoic-goodall-P2z0d` (Vercel preview build). Not yet end-to-end-verified in a live browser reading — worth confirming that (a) Open-Meteo geocoding is reachable from the deploy env's network policy, and (b) a real reading shows plausible Moon/Rising in the Celestial Signature strip. Then merge to `main` for prod.
 - **Accuracy caveats (acceptable, noted):** ayanāṃśa is a linear precession approximation (~arcmin-accurate, fine for 13.3°-wide nakshatras); timezone offset uses a single Intl correction pass (a birth at the exact DST cusp could be off by an hour); geocoding takes the top Open-Meteo match on the city token before the first comma.
 
+## NEXT UP — Full front-end redesign (kickoff note for a fresh thread)
+Decision: a **full visual redesign**, done **in code** (Claude Code). Nothing migrates to a design tool — the TSX in this repo stays the source of truth (it's what Vercel ships). A design tool, if used at all, only produces disposable visual targets.
+
+**Direction (PLACEHOLDER — user to fill in):** _adjectives / reference images / vibe go here, e.g. "obsidian, oracular, restrained, cinematic"._ This is the one thing that can't be inferred from code — set it before starting.
+
+**Screens to redesign (the "before" — gather a screenshot of each):**
+- IDLE, ANALYZING, COMMUNING, MANIFESTING, REVEALED (the `App.tsx` state machine)
+- `InputForm.tsx` (name, birth date/time, birthplace, gender, photo)
+- `ResultReveal.tsx` two-phase reveal (SCRIPTURE descent → MANIFESTATION dashboard) + Celestial Signature strip
+- `ShareCard.tsx` 1080×1920 story card
+
+**Constraints (redesign the skin, not the architecture):**
+- App state machine stays (IDLE→ANALYZING→COMMUNING→MANIFESTING→REVEALED).
+- Share card stays 1080×1920 (9:16); the image pipeline generates portraits natively at 9:16/2K to fill it — don't change the framing.
+- Keep the headless render harness (`share-preview.*`, `npm run render:cards`) working.
+
+**Suggested sequence:** (1) propose a design language first — color/type/spacing/motion tokens + a few reusable primitives (buttons, panels, celestial chrome) so screens stay coherent; (2) redesign screen-by-screen against the screenshots, verifying each in a real browser; (3) share card last (tightest pixel constraints, inherits the new language).
+
 ## Git
 - Production branch: `main`
 - Most recent feature branch: `claude/share-portrait-card` (merged via PR #3)
