@@ -1,0 +1,166 @@
+/*
+  Primitives — the only building blocks the redesigned screens consume.
+  All styles are scoped via .mm- prefix to avoid clashing with the legacy
+  Tailwind utilities and App.css selectors during the migration window.
+*/
+
+/* ---------- Eyebrow ---------- */
+.mm-eyebrow {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  display: inline-block;
+}
+.mm-eyebrow--meta   { color: var(--mm-lavender); }
+.mm-eyebrow--action { color: var(--mm-antique); }
+
+
+/* ---------- Display / Title / Heading ---------- */
+.mm-display {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  color: var(--mm-lumen);
+  text-transform: uppercase;
+  line-height: var(--mm-lh-display);
+  margin: 0;
+}
+.mm-display--display { font-size: var(--mm-type-display); letter-spacing: var(--mm-track-display); }
+.mm-display--title   { font-size: var(--mm-type-title);   letter-spacing: var(--mm-track-title);   }
+.mm-display--heading { font-size: var(--mm-type-heading); letter-spacing: var(--mm-track-heading); text-transform: none; }
+
+
+/* ---------- Scripture ---------- */
+.mm-scripture {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--mm-type-body-lg);
+  line-height: var(--mm-lh-body);
+  color: var(--mm-lumen-soft);
+  max-width: var(--mm-col-reading);
+  text-align: justify;
+  hyphens: auto;
+}
+.mm-scripture > p:first-of-type::first-letter {
+  font-family: var(--mm-font-display);
+  font-style: normal;
+  font-weight: 500;
+  color: var(--mm-inscription);
+  font-size: 4em;
+  line-height: 0.9;
+  float: left;
+  padding-right: 0.12em;
+  padding-top: 0.05em;
+}
+.mm-scripture > p + p {
+  margin-top: var(--mm-s-3);
+}
+
+
+/* ---------- HairlineRule ---------- */
+.mm-rule {
+  border: 0;
+  height: 1px;
+  background: var(--mm-inscription);
+  width: 32px;
+  margin: var(--mm-s-3) 0;
+  opacity: 0.85;
+}
+.mm-rule--wide { width: 96px; }
+.mm-rule--full { width: 100%; opacity: 0.4; }
+
+
+/* ---------- Ornament ---------- */
+.mm-ornament {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mm-inscription);
+  font-size: 0.7em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+
+/* ---------- InscriptionRail ---------- */
+.mm-rail {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  color: var(--mm-lavender);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  display: inline-block;
+}
+
+
+/* ---------- MetaPair ---------- */
+.mm-meta-pair {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-1);
+}
+.mm-meta-pair__value {
+  font-family: var(--mm-font-body);
+  font-size: var(--mm-type-body);
+  color: var(--mm-lumen);
+  line-height: 1.3;
+}
+
+
+/* ---------- CTA ---------- */
+.mm-cta {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-cta);
+  letter-spacing: var(--mm-track-cta);
+  text-transform: uppercase;
+  padding: 14px 28px;
+  background: transparent;
+  border: 1px solid var(--mm-inscription);
+  color: var(--mm-lumen);
+  cursor: pointer;
+  transition: background var(--mm-dur-bloom) var(--mm-ease-bloom),
+              color var(--mm-dur-bloom) var(--mm-ease-bloom);
+}
+.mm-cta:hover  { background: rgba(198, 139, 60, 0.08); }
+.mm-cta:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.mm-cta--primary {
+  background: var(--mm-lumen);
+  color: var(--mm-obsidian);
+  border-color: var(--mm-lumen);
+}
+.mm-cta--primary:hover { background: var(--mm-lumen-soft); }
+
+.mm-cta--quiet {
+  border-color: transparent;
+  color: var(--mm-antique);
+  padding: 14px 0;
+}
+.mm-cta--quiet:hover { background: transparent; color: var(--mm-inscription); }
+
+
+/* ---------- Surface ---------- */
+.mm-surface {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(20, 18, 40, 0.45) 0%, transparent 60%),
+    var(--mm-obsidian);
+  color: var(--mm-lumen-soft);
+  overflow: hidden;
+}
+.mm-surface::after {
+  /* corner vignette — pulls light to center, deepens edges */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 50%, var(--mm-obsidian-deep) 100%);
+}
