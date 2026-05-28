@@ -1,149 +1,324 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400&family=Space+Mono&family=Crimson+Pro:ital,wght@0,300;0,400;1,400&display=swap');
+/*
+  ResultReveal.css — Screens 4-6 (Scripture, Manifestation, Email-Capture).
 
-.mythic-container {
-  background-color: #0A0A0A;
-  /* Obsidian */
-  color: #E5E5E5;
-  font-family: 'Inter', sans-serif;
+  Scripture phase: editorial column with hero archetype name + drop-capped
+  scripture body. Asymmetric, like the rest of the system.
+
+  Manifestation phase: streaming-key-art lockup at top (portrait + name
+  overlay), editorial body below carrying the full reading. Cosmic Code
+  presented as inline editorial entries — NO card-on-card panels.
+
+  Email-capture overlay: fixed full-screen scrim with a centered
+  editorial column. NOT a card; the scrim IS the surface.
+*/
+
+/* ======== Shared frame ======== */
+.reveal-frame {
+  display: grid;
+  grid-template-columns: 96px 1fr;
   min-height: 100vh;
-  padding: 4rem 2rem;
+  position: relative;
+  z-index: 1;
+}
+.reveal-rail {
+  grid-column: 1;
+  padding-top: var(--mm-s-5);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.reveal-column {
+  grid-column: 2;
+  padding: var(--mm-s-5) var(--mm-s-4) var(--mm-s-5);
+  max-width: 960px;
 }
 
-.mythic-title {
-  font-family: 'Cinzel', serif;
-  color: #D4AF37;
-  /* Classic Gold */
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  text-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
-  margin-bottom: 2rem;
+/* ======== SCRIPTURE phase ======== */
+.scripture-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-4);
+  max-width: var(--mm-col-reading);
 }
-
-.mythic-brief-section {
-  border-left: 1px solid rgba(212, 175, 55, 0.2);
-  padding-left: 2rem;
-  margin-top: 3rem;
-  max-width: 800px;
-}
-
-.mythic-brief-label {
-  font-family: 'Inter', sans-serif;
-  /* Codex Tier */
-  font-size: 0.75rem;
-  color: #C5A059;
-  /* Muted Gold */
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
-.mythic-brief-text {
-  font-size: 1.1rem;
-  line-height: 1.8;
+.scripture-eyebrow { margin-bottom: var(--mm-s-2); }
+.scripture-oneliner {
+  font-family: var(--mm-font-body);
   font-style: italic;
-  color: #D1D1D1;
+  font-size: clamp(18px, 1.8vw, 22px);
+  line-height: 1.4;
+  color: var(--mm-antique);
+  margin: var(--mm-s-2) 0 0 0;
 }
-
-.cosmic-code-badge {
-  background: linear-gradient(135deg, #1A1A1A 0%, #000000 100%);
-  border: 1px solid #D4AF37;
-  color: #D4AF37;
-  padding: 0.5rem 1rem;
-  font-family: 'Space Mono', monospace;
-  border-radius: 4px;
-  display: inline-block;
-  margin: 1rem 0;
+.scripture-break {
+  display: flex;
+  align-items: center;
+  gap: var(--mm-s-2);
+  color: var(--mm-inscription);
 }
-
-/* Image Frame Mesh Effect */
-.mythic-image-frame {
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  box-shadow: 0 0 50px rgba(0, 0, 0, 1), 0 0 20px rgba(212, 175, 55, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Mythic Scroll (Parchment Style - High Typography) */
-.mythic-scroll {
-  background: linear-gradient(to bottom, #111, #080808);
-  border-top: 1px solid #D4AF37;
-  border-bottom: 1px solid #D4AF37;
-  padding: 4rem 2rem;
-  margin-bottom: 4rem;
-  position: relative;
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.9);
-  max-width: 65ch;
-  /* Golden Ratio for Reading */
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.mythic-scroll p {
-  font-family: 'Crimson Pro', serif;
-  /* Revelation Tier */
-  font-size: 1.5rem;
-  line-height: 1.8;
-  color: #E5E5E5;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.mythic-scroll::before {
+.scripture-break::before,
+.scripture-break::after {
   content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--mm-inscription);
+  opacity: 0.35;
+}
+.scripture-cta-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--mm-s-3);
+}
+
+/* ======== MANIFESTATION phase ======== */
+.manifest-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-5);
+}
+
+/* Key-art lockup — hero portrait fills frame, archetype name lays over
+   the bottom with a scrim. Rectangular (4:5), no rounded corners,
+   bleed-style. The whole point of this image-to-image pipeline. */
+.manifest-hero {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--mm-obsidian-deep);
+}
+.manifest-hero-image {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  border: 1px solid rgba(212, 175, 55, 0.15);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* No grayscale, no contrast filter — the colour IS the archetype */
+}
+.manifest-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(7, 7, 16, 0.96) 0%,
+    rgba(7, 7, 16, 0.65) 30%,
+    rgba(7, 7, 16, 0) 60%
+  );
   pointer-events: none;
 }
-
-/* Likeness Covenant */
-.likeness-covenant {
-  font-family: 'Cinzel', serif;
-  font-size: 0.9rem;
-  letter-spacing: 0.15em;
-  color: #D4AF37;
-  /* Gold */
-  opacity: 0.8;
+.manifest-hero-lockup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--mm-s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-2);
+}
+.manifest-hero-name {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  color: var(--mm-lumen);
+  text-transform: uppercase;
+  font-size: clamp(40px, 5.6vw, 72px);
+  letter-spacing: 0.035em;
+  line-height: 1.04;
+  margin: 0;
+  text-shadow: 0 4px 32px rgba(0, 0, 0, 0.6);
+}
+.manifest-hero-oneliner {
+  font-family: var(--mm-font-body);
   font-style: italic;
-  margin-top: 1.5rem;
-  text-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+  color: var(--mm-lumen-soft);
+  font-size: clamp(16px, 1.6vw, 20px);
+  margin: 0;
 }
 
-/* Staggered Animations (2s Pacing) */
-.animate-stagger-1 {
-  opacity: 0;
-  animation: mythicFadeIn 1.5s ease-out forwards;
-  animation-delay: 0.2s;
-  /* Immediate */
+/* Editorial body sections beneath the hero */
+.manifest-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-2);
+  max-width: var(--mm-col-reading);
+}
+.manifest-section-eyebrow { margin-bottom: var(--mm-s-1); }
+.manifest-body {
+  font-family: var(--mm-font-body);
+  font-size: var(--mm-type-body-lg);
+  line-height: var(--mm-lh-body);
+  color: var(--mm-lumen-soft);
+  margin: 0;
+}
+.manifest-quote {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.4;
+  color: var(--mm-lumen-soft);
+  border-left: 1px solid var(--mm-inscription);
+  padding-left: var(--mm-s-3);
+  margin: 0;
 }
 
-.animate-stagger-2 {
-  opacity: 0;
-  animation: mythicFadeIn 1.5s ease-out forwards;
-  animation-delay: 2.5s;
-  /* 2s+ gap for Scripture reading */
+/* Cosmic Code — inline editorial entries, NO card panels */
+.cosmic-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-5);
+  max-width: var(--mm-col-reading);
+}
+.cosmic-entry { display: flex; flex-direction: column; gap: var(--mm-s-2); }
+.cosmic-entry-value {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: clamp(22px, 2.6vw, 30px);
+  letter-spacing: 0.02em;
+  color: var(--mm-inscription);
+  text-transform: uppercase;
+  line-height: 1.15;
+  margin: 0;
+}
+.cosmic-entry-body {
+  font-family: var(--mm-font-body);
+  font-size: var(--mm-type-body);
+  line-height: var(--mm-lh-body);
+  color: var(--mm-lumen-soft);
+  margin: 0;
+}
+.cosmic-entry-silence {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  color: var(--mm-lavender-dim);
+}
+.cosmic-entry--anchor .cosmic-entry-value {
+  color: var(--mm-lumen);
 }
 
-.animate-stagger-3 {
-  opacity: 0;
-  animation: mythicFadeIn 1.5s ease-out forwards;
-  animation-delay: 4.5s;
-  /* 2s gap after Image */
+/* Story-card preview */
+.preview-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--mm-s-3);
+}
+.preview-frame {
+  width: 270px;
+  height: 480px;
+  overflow: hidden;
+  border: 1px solid rgba(198, 139, 60, 0.3);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+.preview-scale { transform: scale(0.25); transform-origin: top left; }
+
+/* Action row */
+.reveal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mm-s-3);
+  align-items: center;
+  margin-top: var(--mm-s-4);
 }
 
-@keyframes mythicFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-    filter: blur(5px);
+/* ======== EMAIL-CAPTURE overlay ======== */
+.email-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(4, 4, 10, 0.94);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mm-gutter);
+  animation: email-overlay-in 600ms var(--mm-ease-bloom);
+}
+@keyframes email-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.email-panel {
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-3);
+  position: relative;
+}
+.email-close {
+  position: absolute;
+  top: calc(-1 * var(--mm-s-4));
+  right: 0;
+  background: transparent;
+  border: 0;
+  color: var(--mm-antique);
+  font-family: var(--mm-font-display);
+  font-size: var(--mm-type-cta);
+  letter-spacing: var(--mm-track-cta);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--mm-dur-bloom) var(--mm-ease-bloom);
+}
+.email-close:hover { color: var(--mm-lumen); }
+.email-heading {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: 0.025em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--mm-lumen);
+  margin: 0;
+}
+.email-sub {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  color: var(--mm-lumen-soft);
+  font-size: var(--mm-type-body-lg);
+  line-height: 1.4;
+  margin: 0;
+}
+.email-input-row {
+  display: flex;
+  gap: var(--mm-s-3);
+  align-items: flex-end;
+  margin-top: var(--mm-s-3);
+}
+.email-input-row .idle-field { flex: 1; }
+.email-fine {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--mm-lavender-dim);
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .reveal-frame {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
+  .reveal-rail {
+    grid-column: 1;
+    grid-row: 1;
+    padding: var(--mm-s-3) var(--mm-gutter) 0;
+    position: static;
+    height: auto;
+    justify-content: flex-start;
   }
+  .reveal-rail .mm-rail {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+  .reveal-column {
+    grid-column: 1;
+    grid-row: 2;
+    padding: var(--mm-s-3) var(--mm-gutter) var(--mm-s-5);
+  }
+  .manifest-hero { max-width: 100%; }
+  .email-input-row { flex-direction: column; align-items: stretch; }
+  .email-input-row .mm-cta { width: 100%; }
 }

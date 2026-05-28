@@ -123,8 +123,8 @@ const App: React.FC = () => {
 
   // Redesign flow: form-first, no auth gate at the front door.
   // The Auth component + session code stay in the file for the email-capture
-  // step (deferred). IDLE renders InputForm directly with its own Surface,
-  // so it bypasses ObsidianContainer's 600px centered constraint.
+  // step (the soft-account hook). IDLE / loading / REVEALED render their own
+  // Surface, bypassing ObsidianContainer's 600px centered constraint.
   if (appState === AppState.IDLE) {
     return <InputForm onSubmit={handleInitiate} />;
   }
@@ -133,16 +133,16 @@ const App: React.FC = () => {
     return <ObsidianContainer><div /></ObsidianContainer>;
   }
 
+  if ([AppState.ANALYZING, AppState.COMMUNING, AppState.MANIFESTING].includes(appState)) {
+    return <LoadingOracle state={appState} />;
+  }
+
+  if (appState === AppState.REVEALED && result) {
+    return <ResultReveal result={result} onReset={reset} />;
+  }
+
   return (
     <ObsidianContainer>
-      {[AppState.ANALYZING, AppState.COMMUNING, AppState.MANIFESTING].includes(appState) && (
-        <LoadingOracle state={appState} />
-      )}
-
-      {appState === AppState.REVEALED && result && (
-        <ResultReveal result={result} onReset={reset} />
-      )}
-
       {appState === AppState.ERROR && (
         <div className="text-center pt-20">
           <h2 className="text-red-500 font-serif text-2xl uppercase tracking-widest mb-4">Signal Interrupted</h2>

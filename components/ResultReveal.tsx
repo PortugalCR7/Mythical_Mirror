@@ -1,23 +1,32 @@
 import './ResultReveal.css';
 import React from 'react';
 import { OracleResult } from '../services/types';
-import { RefreshCcw, Download, Zap, Activity, Globe, Shield, Share2 } from 'lucide-react';
 import { toPng, toBlob } from 'html-to-image';
 import ShareCard from './ShareCard';
+import {
+  Surface,
+  Eyebrow,
+  InscriptionRail,
+  Ornament,
+  CTA,
+} from './primitives';
 
 interface Props {
   result: OracleResult;
   onReset: () => void;
 }
 
-const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
-  const [viewState, setViewState] = React.useState<'SCRIPTURE' | 'MANIFESTATION'>('SCRIPTURE');
-  const shareRef = React.useRef<HTMLDivElement>(null);
-  const [sharing, setSharing] = React.useState(false);
+type Phase = 'SCRIPTURE' | 'MANIFESTATION';
 
-  // Resolve the portrait to a data URL for export. Fresh reveals are already
-  // data URLs (no-op); history portraits are cross-origin Supabase signed URLs
-  // that would taint the html-to-image canvas, so we fetch + inline them.
+const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
+  const [phase, setPhase] = React.useState<Phase>('SCRIPTURE');
+  const [emailOpen, setEmailOpen] = React.useState(false);
+  const [email, setEmail] = React.useState('');
+  const [emailError, setEmailError] = React.useState(false);
+  const [sharing, setSharing] = React.useState(false);
+  const shareRef = React.useRef<HTMLDivElement>(null);
+
+  // Cross-origin portrait → data URL (preserves the existing pipeline).
   const rawPortrait = result.generatedImage || result.userImage;
   const [exportPortrait, setExportPortrait] = React.useState<string | undefined>(
     rawPortrait?.startsWith('data:') ? rawPortrait : undefined
@@ -39,39 +48,32 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
           reader.readAsDataURL(blob);
         });
         if (!cancelled) setExportPortrait(dataUrl);
-      } catch (err) {
-        // CORS or network failure — fall back to the raw URL so the in-app
-        // preview still displays; export may taint, handled in sharePortrait.
+      } catch {
         if (!cancelled) setExportPortrait(rawPortrait);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [rawPortrait]);
 
-  const exportAsImage = async () => {
+  const exportFullRevelation = async () => {
     const node = document.getElementById('mythic-card');
-    if (node) {
-      const dataUrl = await toPng(node, { cacheBust: true });
-      const link = document.createElement('a');
-      link.download = `revelation-${result.id}.png`;
-      link.href = dataUrl;
-      link.click();
-    }
+    if (!node) return;
+    const dataUrl = await toPng(node, { cacheBust: true, backgroundColor: '#070710' });
+    const link = document.createElement('a');
+    link.download = `revelation-${result.id}.png`;
+    link.href = dataUrl;
+    link.click();
   };
 
   const sharePortrait = async () => {
     if (!shareRef.current || sharing) return;
     setSharing(true);
     try {
-      // Ensure web fonts are loaded before rasterizing, or text falls back.
       if (document.fonts?.ready) await document.fonts.ready;
-
       const blob = await toBlob(shareRef.current, {
         cacheBust: true,
         pixelRatio: 1,
-        backgroundColor: '#050505',
+        backgroundColor: '#070710',
       });
       if (!blob) throw new Error('Could not render share card.');
 
@@ -81,7 +83,6 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
         title: result.archetype,
         text: `I am ${result.archetype} — divined by The Mythical Mirror.`,
       };
-
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share(shareData);
       } else {
@@ -93,245 +94,270 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
         URL.revokeObjectURL(url);
       }
     } catch (err: any) {
-      // AbortError = user dismissed the native share sheet; not an error.
       if (err?.name !== 'AbortError') console.error('Share failed:', err);
     } finally {
       setSharing(false);
     }
   };
 
-  // SCRIPTURE PHASE (The Descent)
-  if (viewState === 'SCRIPTURE') {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!valid) {
+      setEmailError(true);
+      return;
+    }
+    setEmailError(false);
+    // TODO(backend): POST the email + reading id to a serverless endpoint
+    // that sends the rasterized revelation as an attachment. For now, the
+    // email is captured client-side and the local PNG download is triggered
+    // so the user receives something.
+    console.log('[email-capture]', { email: email.trim(), readingId: result.id });
+    await exportFullRevelation();
+    setEmailOpen(false);
+  };
+
+  // -------------------------- SCRIPTURE PHASE --------------------------
+  if (phase === 'SCRIPTURE') {
     return (
-      <div className="mythic-container flex flex-col items-center justify-center min-h-screen animate-fade-in px-4">
-        <div className="max-w-3xl text-center">
-          <span className="mythic-brief-label mb-4 block animate-stagger-1 text-gold/50 tracking-[0.5em]">The Lost Scripture</span>
-
-          <div className="mythic-scroll animate-stagger-1 mb-12">
-            <h1 className="text-3xl md:text-4xl font-cinzel text-gold mb-8">{result.archetype}</h1>
-            <p className="text-xl md:text-2xl leading-relaxed text-gray-300 font-serif italic">
-              {result.mythopoeticBrief.descent}
-            </p>
-          </div>
-
-          <button
-            onClick={() => setViewState('MANIFESTATION')}
-            className="animate-stagger-3 px-10 py-4 border border-gold/40 text-gold hover:bg-gold hover:text-black transition-all duration-500 rounded-sm font-cinzel tracking-[0.2em] uppercase text-sm"
-          >
-            Enter The Mirror
-          </button>
+      <Surface>
+        <div className="reveal-frame">
+          <aside className="reveal-rail">
+            <InscriptionRail>The Mythic Mirror · The Lost Scripture · ◇</InscriptionRail>
+          </aside>
+          <main className="reveal-column">
+            <div className="scripture-stage">
+              <div className="scripture-eyebrow">
+                <Eyebrow tone="meta">{(result.culture || 'Ancient')} Lineage</Eyebrow>
+              </div>
+              <h1
+                className="manifest-hero-name"
+                style={{ fontSize: 'clamp(48px, 7vw, 96px)', textShadow: 'none' }}
+              >
+                {result.archetype}
+              </h1>
+              {result.mythopoeticBrief?.one_liner && (
+                <p className="scripture-oneliner">{result.mythopoeticBrief.one_liner}</p>
+              )}
+              <div className="scripture-break"><Ornament /></div>
+              <div className="mm-scripture">
+                <p>{result.mythopoeticBrief?.descent}</p>
+              </div>
+              <div className="scripture-break"><Ornament /></div>
+              <div className="scripture-cta-row">
+                <CTA variant="primary" onClick={() => setPhase('MANIFESTATION')}>
+                  Enter The Mirror
+                </CTA>
+              </div>
+            </div>
+          </main>
         </div>
-      </div>
+      </Surface>
     );
   }
 
-  // MANIFESTATION PHASE (The Full Dashboard)
+  // ------------------------- MANIFESTATION PHASE -----------------------
+  const cosmicEntries: Array<{ label: string; value?: string; reading?: string; isAnchor?: boolean }> = [
+    { label: 'Human Design',         value: result.fingerprint?.humanDesignProfile,                         reading: result.cosmicReadings?.hds },
+    { label: 'Gene Keys',            value: result.fingerprint?.geneKeyGift,                                reading: result.cosmicReadings?.gk },
+    { label: 'Mayan Tzolkin',        value: result.fingerprint?.mayanKin,                                   reading: result.cosmicReadings?.mayan },
+    { label: 'Earth Medicine',       value: result.fingerprint?.animalTotem,                                reading: result.totem },
+    { label: 'Soul Level Astrology', value: result.fingerprint?.soulNode,                                   reading: result.cosmicReadings?.soulLevel },
+    { label: 'Bazi',                 value: result.fingerprint?.bazi,                                       reading: result.cosmicReadings?.bazi },
+    { label: 'Numerology',           value: result.fingerprint?.lifePathNumber?.toString(),                 reading: result.cosmicReadings?.numerology },
+    { label: 'Vedic Astrology',      value: result.fingerprint?.vedic || result.fingerprint?.nakshatra,     reading: result.cosmicReadings?.vedic },
+    { label: 'Sun Sign Archetype',   value: result.fingerprint?.sunSignArchetype,                          reading: result.cosmicReadings?.sunSign },
+    {
+      label: 'Biometric Synthesis',
+      value: `${result.fingerprint?.elementalClan || 'Verdant'} ${result.fingerprint?.animalTotem || 'Sentinel'}`,
+      reading: result.cosmicReadings?.biometric,
+      isAnchor: true,
+    },
+  ];
+
   return (
-    <div className="mythic-container max-w-5xl mx-auto py-10 px-4 animate-fade-in">
-      <div id="mythic-card" className="bg-black border border-gold/20 rounded-2xl overflow-hidden shadow-2xl relative">
-        {/* Subtle Gradient Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-64 bg-gold/5 blur-[120px]" />
+    <Surface>
+      <div className="reveal-frame">
+        <aside className="reveal-rail">
+          <InscriptionRail>The Mythic Mirror · The Revelation · ◇</InscriptionRail>
+        </aside>
 
-        {/* HEADER: The Archetype Identity (Fade In 1) */}
-        <div className="relative p-12 text-center border-b border-gold/10 animate-stagger-1">
-          <span className="mythic-brief-label mb-2">
-            {result.culture || "Ancient"} Lineage
-          </span>
+        <main className="reveal-column" id="mythic-card">
+          <div className="manifest-stage">
 
-          <h1 className="mythic-title text-5xl md:text-6xl mb-6">
-            {result.archetype}
-          </h1>
-
-          <p className="text-gold/60 italic tracking-widest text-sm uppercase">
-            {result.mythopoeticBrief.one_liner}
-          </p>
-        </div>
-
-        {/* LOST SCRIPTURE: The Descent (Fade In 1 - Priority) */}
-        {/* KEPT FOR CONTEXT IN CARD, BUT REDUCED EMPHASIS IF ALREADY READ */}
-        <div className="mythic-scroll max-w-4xl mx-auto animate-stagger-1 opacity-80 scale-95 origin-top">
-          <p className="text-lg md:text-xl text-justify text-gray-400 font-serif leading-loose italic">
-            {result.mythopoeticBrief.descent}
-          </p>
-        </div>
-
-
-        {/* THE MIRROR: Visual Manifestation (Fade In 2) */}
-        <div className="relative p-8 flex flex-col items-center justify-center border-b border-gold/10 bg-black animate-stagger-2">
-          <div className="mythic-image-frame w-80 h-80 rounded-full border-2 border-gold/30 p-1 bg-black/50 shadow-[0_0_30px_rgba(212,175,55,0.1)] mb-6">
-            <img
-              /* PRIORITY: Show the synthesized 8K image first, fallback to user headshot */
-              src={result.generatedImage || result.userImage}
-              alt={result.archetype}
-              className="w-full h-full object-cover rounded-full filter grayscale-[30%] contrast-[110%]"
-            />
-          </div>
-
-          {/* LIKENESS LORE: The Bridge */}
-          {result.mythopoeticBrief.likeness_lore && (
-            <p className="likeness-covenant text-center max-w-lg mx-auto">
-              "{result.mythopoeticBrief.likeness_lore}"
-            </p>
-          )}
-        </div>
-
-        {/* THE RECLAMATION (Fade In 3) */}
-        {result.mythopoeticBrief.reclamation && (
-          <div className="space-y-4 text-center mt-12 px-12 animate-stagger-3">
-            <h4 className="text-gold text-lg uppercase tracking-[0.3em] font-cinzel border-b border-gold/20 pb-2 inline-block">The Reclamation</h4>
-            <p className="text-gray-300 leading-relaxed font-serif text-lg">{result.mythopoeticBrief.reclamation}</p>
-          </div>
-        )}
-
-        {/* THE DEVOTION (Fade In 3) */}
-        <div className="space-y-4 text-center mt-12 animate-stagger-3">
-          <h4 className="text-gold text-lg uppercase tracking-[0.3em] font-cinzel border-b border-gold/20 pb-2 inline-block">The Devotion</h4>
-          <p className="text-gray-400 leading-relaxed font-light">{result.mythopoeticBrief.devotion}</p>
-        </div>
-      </div>
-
-      {/* THE 10-POINT COSMIC CODE (Fade In 3) */}
-      {/* THE 10-POINT COSMIC CODE (Fade In 3) */}
-      {/* THE 10-POINT COSMIC CODE (Fade In 3) */}
-      <div className="p-12 animate-stagger-3 max-w-3xl mx-auto">
-        <h3 className="text-2xl font-cinzel text-gold uppercase tracking-widest mb-12 text-center underline decoration-gold/50 decoration-1 underline-offset-8">Cosmic Code</h3>
-
-        <div className="flex flex-col gap-8 md:gap-12">
-          {[
-            {
-              label: 'Human Design',
-              title: result.fingerprint?.humanDesignProfile,
-              reading: result.cosmicReadings?.hds
-            },
-            {
-              label: 'Gene Keys',
-              title: result.fingerprint?.geneKeyGift,
-              reading: result.cosmicReadings?.gk
-            },
-            {
-              label: 'Mayan Tzolkin',
-              title: result.fingerprint?.mayanKin || 'Blue Storm',
-              reading: result.cosmicReadings?.mayan
-            },
-            {
-              label: 'Earth Medicine',
-              title: result.fingerprint?.animalTotem,
-              reading: result.totem
-            },
-            {
-              label: 'Soul Level Astrology',
-              title: result.fingerprint?.soulNode || 'The Guardian',
-              reading: result.cosmicReadings?.soulLevel
-            },
-            {
-              label: 'Bazi',
-              title: result.fingerprint?.bazi || 'Water Pig',
-              reading: result.cosmicReadings?.bazi
-            },
-            {
-              label: 'Numerology',
-              title: result.fingerprint?.lifePathNumber || 'The Builder',
-              reading: result.cosmicReadings?.numerology
-            },
-            {
-              label: 'Vedic Astrology',
-              title: result.fingerprint?.vedic || result.fingerprint?.nakshatra,
-              reading: result.cosmicReadings?.vedic
-            },
-            {
-              label: 'Sun Sign Archetype',
-              title: result.fingerprint?.sunSignArchetype || 'The Cardinal',
-              reading: result.cosmicReadings?.sunSign
-            },
-            // BIOMETRIC SYNTHESIS - THE ANCHOR (Must be last)
-            {
-              label: 'Biometric Synthesis',
-              title: `${result.fingerprint?.elementalClan || 'Verdant'} ${result.fingerprint?.animalTotem || 'Sentinel'}`,
-              reading: result.cosmicReadings?.biometric,
-              isAnchor: true
-            },
-          ].map((item, i) => {
-            const hasContent = item.reading && item.reading !== 'N/A';
-            const title = item.title && item.title !== 'N/A' ? item.title : 'Unknown';
-
-            return (
-              <div
-                key={i}
-                className={`
-                  relative overflow-hidden rounded-xl p-8 md:p-12 transition-all duration-700
-                  ${item.isAnchor
-                    ? 'bg-gold/5 shadow-[0_4px_30px_rgba(212,175,55,0.1)] border border-gold/20'
-                    : 'bg-white/5 shadow-[0_4px_24px_rgba(0,0,0,0.5)] border border-transparent hover:border-gold/10'}
-                `}
-              >
-                {/* 1. LABEL (Codex Tier - Sans) */}
-                <span className="block font-sans text-xs tracking-[0.25em] text-gold/60 uppercase mb-3">
-                  {item.label}
-                </span>
-
-                {/* 2. HEADER (Sacred Tier - Cinzel) */}
-                <h3 className="text-2xl md:text-3xl font-cinzel text-gold mb-6 tracking-wide drop-shadow-lg">
-                  {title}
-                </h3>
-
-                {/* 3. BODY (Revelation Tier - Serif) */}
-                {hasContent ? (
-                  <p className="font-serif text-lg md:text-xl text-gray-300 leading-loose opacity-90 font-light">
-                    {item.reading}
-                  </p>
-                ) : (
-                  <p className="font-serif text-gold/30 text-lg italic tracking-wider">
-                    Sacred Silence
-                  </p>
+            {/* Hero lockup — portrait + archetype name overlay */}
+            <div className="manifest-hero">
+              {rawPortrait ? (
+                <img
+                  src={rawPortrait}
+                  alt={result.archetype}
+                  className="manifest-hero-image"
+                />
+              ) : (
+                <div className="manifest-hero-image" style={{ background: '#0E0E1A' }} />
+              )}
+              <div className="manifest-hero-scrim" />
+              <div className="manifest-hero-lockup">
+                <Eyebrow tone="meta">
+                  {(result.culture || 'Ancient')} Lineage
+                </Eyebrow>
+                <h1 className="manifest-hero-name">{result.archetype}</h1>
+                {result.mythopoeticBrief?.one_liner && (
+                  <p className="manifest-hero-oneliner">{result.mythopoeticBrief.one_liner}</p>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </div>
 
-      {/* SHARE PREVIEW — live, scaled-down render of the actual story card */}
-      <div className="mt-16 flex flex-col items-center">
-        <span className="mythic-brief-label mb-6 block text-gold/50 tracking-[0.4em] text-xs uppercase">Your Story Card</span>
+            {/* Likeness lore */}
+            {result.mythopoeticBrief?.likeness_lore && (
+              <section className="manifest-section">
+                <div className="manifest-section-eyebrow">
+                  <Eyebrow tone="meta">The Likeness</Eyebrow>
+                </div>
+                <blockquote className="manifest-quote">
+                  {result.mythopoeticBrief.likeness_lore}
+                </blockquote>
+              </section>
+            )}
 
-        {/* Scaled preview: 1080×1920 card shown at 0.25 → 270×480 */}
-        <div
-          style={{ width: 270, height: 480 }}
-          className="rounded-lg overflow-hidden border border-gold/20 shadow-2xl"
-        >
-          <div style={{ transform: 'scale(0.25)', transformOrigin: 'top left' }}>
-            <ShareCard result={result} portrait={exportPortrait} />
+            {/* Descent (recap, smaller than the scripture phase) */}
+            {result.mythopoeticBrief?.descent && (
+              <section className="manifest-section">
+                <div className="manifest-section-eyebrow">
+                  <Eyebrow tone="meta">The Descent</Eyebrow>
+                </div>
+                <p className="manifest-body" style={{ fontStyle: 'italic' }}>
+                  {result.mythopoeticBrief.descent}
+                </p>
+              </section>
+            )}
+
+            {result.mythopoeticBrief?.reclamation && (
+              <section className="manifest-section">
+                <div className="manifest-section-eyebrow">
+                  <Eyebrow tone="meta">The Reclamation</Eyebrow>
+                </div>
+                <p className="manifest-body">{result.mythopoeticBrief.reclamation}</p>
+              </section>
+            )}
+
+            {result.mythopoeticBrief?.devotion && (
+              <section className="manifest-section">
+                <div className="manifest-section-eyebrow">
+                  <Eyebrow tone="meta">The Devotion</Eyebrow>
+                </div>
+                <p className="manifest-body">{result.mythopoeticBrief.devotion}</p>
+              </section>
+            )}
+
+            {/* Cosmic Code — inline editorial entries, no panels */}
+            <section>
+              <div className="manifest-section-eyebrow">
+                <Eyebrow tone="meta">Cosmic Code</Eyebrow>
+              </div>
+              <div className="cosmic-list">
+                {cosmicEntries.map((entry, i) => {
+                  const hasReading = entry.reading && entry.reading !== 'N/A';
+                  const value = entry.value && entry.value !== 'N/A' ? entry.value : 'Sacred Silence';
+                  return (
+                    <div
+                      key={i}
+                      className={`cosmic-entry${entry.isAnchor ? ' cosmic-entry--anchor' : ''}`}
+                    >
+                      <Eyebrow tone="action">{entry.label}</Eyebrow>
+                      <h3 className="cosmic-entry-value">{value}</h3>
+                      {hasReading ? (
+                        <p className="cosmic-entry-body">{entry.reading}</p>
+                      ) : (
+                        <p className="cosmic-entry-body cosmic-entry-silence">Sacred silence.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Story-card preview */}
+            <section className="preview-block">
+              <Eyebrow tone="meta">Your Story Card</Eyebrow>
+              <div className="preview-frame">
+                <div className="preview-scale">
+                  <ShareCard result={result} portrait={exportPortrait} />
+                </div>
+              </div>
+            </section>
+
+            {/* Actions */}
+            <div className="reveal-actions">
+              <CTA
+                variant="inscription"
+                onClick={sharePortrait}
+                disabled={sharing}
+              >
+                {sharing ? 'Conjuring…' : 'Share Portrait'}
+              </CTA>
+              <CTA variant="primary" onClick={() => setEmailOpen(true)}>
+                Full Revelation
+              </CTA>
+              <CTA variant="quiet" onClick={onReset}>New Reading</CTA>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
 
-      {/* SYSTEM CONTROLS */}
-      <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 mt-12 pb-12">
-        <button onClick={onReset} className="flex items-center gap-2 text-gray-400 hover:text-white transition-all group">
-          <RefreshCcw size={16} className="group-hover:rotate-180 transition-transform duration-700" />
-          <span className="text-[10px] uppercase tracking-[0.2em]">New Inquiry</span>
-        </button>
-        <button
-          onClick={sharePortrait}
-          disabled={sharing}
-          className="flex items-center gap-2 px-8 py-3 bg-gold text-black rounded-full hover:bg-gold/80 transition-all disabled:opacity-50"
-        >
-          <Share2 size={14} />
-          <span className="text-[10px] uppercase tracking-[0.2em] font-bold">
-            {sharing ? 'Conjuring…' : 'Share Portrait'}
-          </span>
-        </button>
-        <button onClick={exportAsImage} className="flex items-center gap-2 px-8 py-3 border border-gold/40 text-gold rounded-full hover:bg-gold hover:text-black transition-all">
-          <Download size={14} />
-          <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Full Revelation</span>
-        </button>
-      </div>
-
-      {/* OFF-SCREEN SHARE CARD (rasterized by sharePortrait) */}
+      {/* Off-screen ShareCard for rasterization (unchanged contract) */}
       <div style={{ position: 'fixed', left: -99999, top: 0, pointerEvents: 'none' }} aria-hidden>
         <ShareCard ref={shareRef} result={result} portrait={exportPortrait} />
       </div>
-    </div>
+
+      {/* Email-capture overlay */}
+      {emailOpen && (
+        <div
+          className="email-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="email-heading"
+          onClick={(e) => { if (e.target === e.currentTarget) setEmailOpen(false); }}
+        >
+          <form className="email-panel" onSubmit={handleEmailSubmit}>
+            <button
+              type="button"
+              className="email-close"
+              onClick={() => setEmailOpen(false)}
+              aria-label="Close"
+            >
+              Close ×
+            </button>
+            <Eyebrow tone="action">Full Revelation</Eyebrow>
+            <h2 id="email-heading" className="email-heading">
+              Where shall the revelation arrive?
+            </h2>
+            <p className="email-sub">
+              Your full reading will be sent as a high-resolution image. One message,
+              no list.
+            </p>
+            <div className="email-input-row">
+              <div className="idle-field" style={{ gap: 8 }}>
+                <Eyebrow tone="meta">Email</Eyebrow>
+                <input
+                  type="email"
+                  className={`idle-input${emailError ? ' idle-input--error' : ''}`}
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(false); }}
+                  autoFocus
+                  autoComplete="email"
+                />
+              </div>
+              <CTA type="submit" variant="primary">Deliver</CTA>
+            </div>
+            <p className="email-fine">
+              We use your email only to send this revelation. Nothing else.
+            </p>
+          </form>
+        </div>
+      )}
+    </Surface>
   );
 };
 
