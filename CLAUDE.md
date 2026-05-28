@@ -76,6 +76,57 @@ Critical: do NOT regress this back to Imagen 3 / text-only rendering — Imagen 
 - **#5 not independently verified**: the cross-origin *history* export path (Supabase signed URL → data URL) was only validated headlessly + on a fresh reading. Worth confirming a history-loaded reading exports cleanly (depends on Supabase Storage CORS allowing the fetch).
 - **Supabase**: env vars set; the three forks (auth method, image storage, IndexedDB migration) were resolved enough to wire auth + readings storage (PR #1 merged earlier). Revisit if deeper DB work is needed.
 
+## NEXT UP — Full front-end redesign
+
+Full visual redesign of The Mythical Mirror in code, screen by screen. The state machine, the image pipeline, and the 9:16 / 2K share-card framing are locked; everything else is in scope. Share card is redesigned last.
+
+### Direction (locked)
+**One-line read:** *A streaming-key-art poster, made personal. Sacred-reverent in pacing, mythic-enthronement at the reveal, editorial in voice, disciplined in ornament.*
+
+- **Mood:** Sacred & reverent. Hushed, temple-like, ceremonial — every moment earned.
+- **Reveal emotion:** Mythic enthronement. The moment the archetype portrait + name land should hit like a hero being named on screen (Vikings / Rings of Power / GoT key-art register).
+- **References:** GoT key art, *The Rings of Power* posters, *Vikings* cover art. Streaming-key-art DNA: hero portrait + monumental editorial type on a black field, equal-weight, often interlocking. Hero emerges from dark.
+- **Color:** Keep obsidian + gold, refine it. **No per-archetype accent for now** (deferred — clan-derived accent stays an option to revisit if the system feels under-signatured post-ship).
+  - Obsidian field with the faintest indigo bleed (not pure jet).
+  - Disciplined gold range, three values only: warm cream "lumen" (display), true ceremonial gold ("inscription"), muted antique gold ("metadata/CTA").
+  - Lavender-silver for wide-tracked metadata / eyebrows.
+- **Type:** Editorial, inscribed, serif-led across the whole system (no separate sans for UI).
+  - Display: high-contrast inscribed serif, all caps, generous tracking, warm cream.
+  - Eyebrow: wide-tracked small caps — lavender for section/meta, antique gold for action.
+  - Scripture body: italic serif, drop-capped, justified. **No small caps in scripture body** (small caps reserved for eyebrows/metadata only).
+  - Reading body / data values: clean cream serif, comfortable size, same family.
+- **Motion:** Restrained & precise. No ambient drift, no breathing glows. Three canonical eases: *Inscribe* (slow draw-in, 1200–1800ms), *Bloom* (opacity + luminance lift, 600ms), *Hush* (held silence, 400–800ms). No spinners anywhere — loading states use the inscription metaphor.
+- **Ornament:** One reserved ornament glyph (hairline knot/diamond), used only at chapter breaks and on the share-card wordmark. The existing hairline gold rule + sparkle/diamond bullet stay. **No knotwork textures, plaques, or engraved bevels** — the poster references are a vibe, not a transplant.
+- **Layout DNA:** Hero portrait IS the surface, not a card on a card. Vertical inscription rail along an edge for loading/desktop margins (replaces centered spinners). Asymmetric, never centered-by-default — the center is reserved for the reveal moment.
+
+### Measure & scale (the rule that fixes the current biggest readability problem)
+The current downloadable revelation strips body copy into a too-narrow column, forcing awful line breaks and a "thin strip down the middle" feel. Hard rules:
+- **Body / scripture measure: 60–75 characters per line** (`max-width: ~65ch`), not 320–400px columns.
+- **Mobile: single column, full width minus 24–32px gutters.** The reading is the canvas — nothing floats as a slim card.
+- **Desktop: editorial column 560–640px** for scripture/body. Side rails (vertical inscription, metadata) live *outside* that column, not by stealing width from it.
+- **Modular type scale, viewport-aware.** Capped 5-step scale (display / title / heading / body-large / body); display headlines scale **down** on small viewports — never assume the full TLALOC scale on phone.
+- **In-app reading is editorial web. The share card is the separate 1080×1920 artifact.** Share-card framing must not leak into the in-app layout.
+
+### Constraints (locked, not in scope to change)
+- State machine: IDLE → ANALYZING → COMMUNING → MANIFESTING → REVEALED stays as-is.
+- Share card framing: 1080×1920 (9:16), single Descent layout, render harness (`share-preview.html` + `scripts/render-share-card.mjs`) keeps working.
+- Image pipeline: Gemini 2.5 Flash narrative + vision traits → Gemini 2.5 Flash Image with reference photo. Not regressing.
+
+### Screens in scope (redesign order)
+1. IDLE (App)
+2. InputForm
+3. ANALYZING / COMMUNING / MANIFESTING (loading states)
+4. REVEALED → ResultReveal SCRIPTURE phase
+5. ResultReveal MANIFESTATION phase (hero portrait + archetype lockup + Cosmic Code/Celestial Signature strip)
+6. ShareCard (last — must respect locked 1080×1920 framing)
+
+### Process for this redesign
+1. ~~**Direction interview**~~ — DONE this thread.
+2. **Capture "before" screenshots** of each screen with the user, one at a time.
+3. **Step 1 of build:** propose design-language tokens (color/type/spacing/motion) + reusable primitives → stop for sign-off before touching screens.
+4. **Step 2 of build:** redesign screen-by-screen in the order above. Share card last.
+5. **Verify on Vercel** once deployed.
+
 ## Git
 - Production branch: `main`
 - Most recent feature branch: `claude/share-portrait-card` (merged via PR #3)
