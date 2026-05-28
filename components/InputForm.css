@@ -1,0 +1,211 @@
+/*
+  InputForm.css — Screen 1 (IDLE) layout.
+  Asymmetric two-column grid on desktop: vertical inscription rail on the
+  left, editorial form column offset to the right of center, breathing
+  negative space on the right. Single column on mobile with the rail
+  collapsed to a horizontal eyebrow.
+
+  Field treatment: bare underline inputs. No cards, no rounded panels —
+  the obsidian field IS the surface, not a backdrop.
+*/
+
+.idle-frame {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) min(600px, calc(100% - 192px)) 96px;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.idle-rail {
+  grid-column: 1;
+  padding-top: var(--mm-s-5);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.idle-column {
+  grid-column: 3;
+  padding: var(--mm-s-5) 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hero block: display headline + sub-headline + ornament break */
+.idle-hero {
+  margin-bottom: var(--mm-s-5);
+}
+.idle-subhead {
+  margin: var(--mm-s-2) 0 0 0;
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.3;
+  color: var(--mm-lumen-soft);
+}
+.idle-break {
+  display: flex;
+  align-items: center;
+  gap: var(--mm-s-2);
+  color: var(--mm-inscription);
+  margin: var(--mm-s-4) 0 var(--mm-s-4);
+}
+.idle-break::before,
+.idle-break::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--mm-inscription);
+  opacity: 0.35;
+}
+
+/* Form rhythm */
+.idle-form { display: flex; flex-direction: column; gap: var(--mm-s-4); }
+.idle-field { display: flex; flex-direction: column; gap: var(--mm-s-2); }
+.idle-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--mm-s-3);
+}
+
+/* Bare underline inputs — no card, no rounded bg */
+.idle-input {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(198, 139, 60, 0.35);
+  padding: var(--mm-s-2) 0;
+  font-family: var(--mm-font-body);
+  font-size: var(--mm-type-body-lg);
+  color: var(--mm-lumen);
+  outline: none;
+  transition: border-color var(--mm-dur-bloom) var(--mm-ease-bloom);
+  color-scheme: dark;
+  width: 100%;
+}
+.idle-input::placeholder { color: var(--mm-lavender-dim); font-style: italic; }
+.idle-input:focus { border-bottom-color: var(--mm-inscription); }
+.idle-input--error { border-bottom-color: var(--mm-ember); animation: idle-error-bloom 600ms ease; }
+@keyframes idle-error-bloom {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+.idle-hint {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--mm-lavender-dim);
+}
+
+/* Path selector — two bare text buttons with selected-state rule */
+.idle-path { display: flex; gap: var(--mm-s-4); }
+.idle-path-option {
+  background: transparent;
+  border: 0;
+  padding: var(--mm-s-2) 0;
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  color: var(--mm-antique);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color var(--mm-dur-bloom) var(--mm-ease-bloom),
+              border-color var(--mm-dur-bloom) var(--mm-ease-bloom);
+}
+.idle-path-option:hover { color: var(--mm-lumen-soft); }
+.idle-path-option--active {
+  color: var(--mm-lumen);
+  border-bottom-color: var(--mm-inscription);
+}
+
+/* Photo dropzone — hairline solid border, NOT dashed (altar not form-field) */
+.idle-dropzone {
+  position: relative;
+  height: 280px;
+  border: 1px solid rgba(198, 139, 60, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color var(--mm-dur-bloom) var(--mm-ease-bloom),
+              background var(--mm-dur-bloom) var(--mm-ease-bloom);
+  overflow: hidden;
+}
+.idle-dropzone:hover { border-color: var(--mm-inscription); background: rgba(198, 139, 60, 0.04); }
+.idle-dropzone--drag { border-color: var(--mm-inscription); background: rgba(198, 139, 60, 0.08); }
+.idle-dropzone--filled { cursor: default; padding: 0; }
+.idle-dropzone-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mm-s-2);
+  color: var(--mm-antique);
+  text-align: center;
+  padding: var(--mm-s-3);
+}
+.idle-dropzone-empty-label {
+  font-family: var(--mm-font-display);
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  color: var(--mm-lumen-soft);
+}
+.idle-dropzone-empty-hint {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--mm-lavender-dim);
+  max-width: 280px;
+}
+.idle-dropzone-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.idle-dropzone-replace {
+  margin-top: var(--mm-s-2);
+  align-self: flex-start;
+}
+
+/* Submit row */
+.idle-submit-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--mm-s-3);
+  margin-top: var(--mm-s-3);
+}
+
+/* ----- Mobile (< 760px) ----- */
+@media (max-width: 760px) {
+  .idle-frame {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .idle-rail {
+    grid-column: 1;
+    grid-row: 1;
+    padding: var(--mm-s-3) var(--mm-gutter) 0;
+    justify-content: flex-start;
+  }
+  /* Collapse vertical rail to horizontal eyebrow on mobile */
+  .idle-rail .mm-rail {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+  .idle-column {
+    grid-column: 1;
+    grid-row: 2;
+    padding: var(--mm-s-3) var(--mm-gutter) var(--mm-s-5);
+  }
+  .idle-row { grid-template-columns: 1fr; gap: var(--mm-s-3); }
+  .idle-submit-row { justify-content: stretch; }
+  .idle-submit-row .mm-cta { width: 100%; }
+  .idle-dropzone { height: 240px; }
+}

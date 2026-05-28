@@ -1,10 +1,21 @@
 import React, { useState, useRef } from 'react';
-import { Camera, X, Moon, Sun } from 'lucide-react';
-import { BirthData } from '../services/types'; // FIXED PATH
+import { Camera, X } from 'lucide-react';
+import { BirthData } from '../services/types';
+import {
+  Surface,
+  Display,
+  Eyebrow,
+  InscriptionRail,
+  Ornament,
+  CTA,
+} from './primitives';
+import './InputForm.css';
 
 interface Props {
   onSubmit: (data: BirthData) => void;
 }
+
+type FieldKey = 'name' | 'date' | 'time' | 'location';
 
 const InputForm: React.FC<Props> = ({ onSubmit }) => {
   const [formData, setFormData] = useState<Partial<BirthData>>({
@@ -12,189 +23,203 @@ const InputForm: React.FC<Props> = ({ onSubmit }) => {
     date: '',
     time: '',
     location: '',
-    gender: 'feminine' // Added default
+    gender: 'feminine',
   });
   const [image, setImage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const setField = (key: FieldKey, value: string) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: false }));
+  };
+
+  const ingestFile = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImage(reader.result as string);
+      if (errors.image) setErrors((prev) => ({ ...prev, image: false }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    ingestFile(e.target.files?.[0]);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    ingestFile(e.dataTransfer.files?.[0]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Verification includes gender now
-    if (formData.name && formData.date && formData.time && formData.location && formData.gender && image) {
-      onSubmit({
-        name: formData.name,
-        date: formData.date,
-        time: formData.time,
-        location: formData.location,
-        gender: formData.gender as 'masculine' | 'feminine',
-        image: image,
-      });
-    } else {
-        alert("The Oracle requires all fields and your likeness to proceed.");
+    const next: Record<string, boolean> = {};
+    (['name', 'date', 'time', 'location'] as const).forEach((k) => {
+      if (!formData[k]) next[k] = true;
+    });
+    if (!image) next.image = true;
+    if (Object.keys(next).length > 0) {
+      setErrors(next);
+      return;
     }
+    onSubmit({
+      name: formData.name!,
+      date: formData.date!,
+      time: formData.time!,
+      location: formData.location!,
+      gender: formData.gender as 'masculine' | 'feminine',
+      image: image!,
+    });
   };
 
   return (
-    <div className="w-full space-y-12 animate-[fadeIn_1s_ease-out] py-8">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <h1 
-            className="font-serif font-bold tracking-widest drop-shadow-md bg-gradient-to-b from-gold to-white bg-clip-text text-transparent uppercase"
-            style={{ fontSize: '3rem' }}
-        >
-          THE MYTHICAL MIRROR
-        </h1>
-        <p 
-            className="text-lavenderPurple font-serif uppercase"
-            style={{ fontSize: '0.9rem', letterSpacing: '4px' }}
-        >
-          CONSULT THE ORACLE OF THE COLLECTIVE IMAGINAL
-        </p>
-      </div>
+    <Surface>
+      <div className="idle-frame">
+        <aside className="idle-rail">
+          <InscriptionRail>The Mythic Mirror · Est. 2026 · ◇</InscriptionRail>
+        </aside>
 
-      <form 
-        onSubmit={handleSubmit} 
-        className="space-y-10 p-10 rounded-[8px] border border-gold bg-[radial-gradient(circle_at_center,var(--obsidian-radial-center),var(--obsidian-bg))] shadow-2xl relative overflow-hidden"
-      >
-        
-        <div className="space-y-8 relative z-10">
-            {/* PATH SELECTION (GENDER TOGGLE) */}
-            <div>
-              <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple mb-4 font-serif text-center">Select Your Path</label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, gender: 'feminine' })}
-                  className={`flex items-center justify-center gap-3 p-4 border transition-all duration-500 rounded-lg ${
-                    formData.gender === 'feminine' 
-                    ? 'border-gold bg-gold/10 text-gold shadow-[0_0_15px_rgba(212,175,55,0.2)]' 
-                    : 'border-gold/20 text-lavenderDim opacity-50 hover:opacity-100 hover:border-gold/40'
-                  }`}
-                >
-                  <Moon size={16} />
-                  <span className="text-[10px] uppercase tracking-widest font-serif">Feminine</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, gender: 'masculine' })}
-                  className={`flex items-center justify-center gap-3 p-4 border transition-all duration-500 rounded-lg ${
-                    formData.gender === 'masculine' 
-                    ? 'border-gold bg-gold/10 text-gold shadow-[0_0_15px_rgba(212,175,55,0.2)]' 
-                    : 'border-gold/20 text-lavenderDim opacity-50 hover:opacity-100 hover:border-gold/40'
-                  }`}
-                >
-                  <Sun size={16} />
-                  <span className="text-[10px] uppercase tracking-widest font-serif">Masculine</span>
-                </button>
+        <main className="idle-column">
+          <header className="idle-hero">
+            <Display level="display">The Mythic Mirror</Display>
+            <p className="idle-subhead">Your reflection awaits.</p>
+            <div className="idle-break" aria-hidden="true">
+              <Ornament />
+            </div>
+          </header>
+
+          <form className="idle-form" onSubmit={handleSubmit} noValidate>
+            <div className="idle-field">
+              <Eyebrow tone="meta">Name</Eyebrow>
+              <input
+                type="text"
+                className={`idle-input${errors.name ? ' idle-input--error' : ''}`}
+                placeholder="who arrives at the glass"
+                value={formData.name}
+                onChange={(e) => setField('name', e.target.value)}
+                autoComplete="given-name"
+              />
+            </div>
+
+            <div className="idle-row">
+              <div className="idle-field">
+                <Eyebrow tone="meta">Birth Date</Eyebrow>
+                <input
+                  type="date"
+                  className={`idle-input${errors.date ? ' idle-input--error' : ''}`}
+                  value={formData.date}
+                  onChange={(e) => setField('date', e.target.value)}
+                />
+              </div>
+              <div className="idle-field">
+                <Eyebrow tone="meta">Birth Time</Eyebrow>
+                <input
+                  type="time"
+                  className={`idle-input${errors.time ? ' idle-input--error' : ''}`}
+                  value={formData.time}
+                  onChange={(e) => setField('time', e.target.value)}
+                />
               </div>
             </div>
 
-            {/* Identity */}
-            <div>
-                <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple mb-3 font-serif">Identity</label>
-                <input
-                    type="text"
-                    placeholder="ENTER YOUR NAME"
-                    className="w-full bg-black/40 border-b border-gold/30 px-4 py-3 text-lavender focus:border-lavenderPurple focus:shadow-[0_0_15px_var(--lavender-header)] focus:outline-none focus:bg-black/60 transition-all font-sans placeholder-lavenderDim/20"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-8">
-                <div>
-                    <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple mb-3 font-serif">Birth Date</label>
-                    <input
-                        type="date"
-                        className="w-full bg-black/40 border-b border-gold/30 px-4 py-3 text-lavender focus:border-lavenderPurple focus:shadow-[0_0_15px_var(--lavender-header)] focus:outline-none focus:bg-black/60 transition-all font-sans uppercase text-sm"
-                        value={formData.date}
-                        onChange={e => setFormData({...formData, date: e.target.value})}
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple mb-3 font-serif">Birth Time</label>
-                    <input
-                        type="time"
-                        className="w-full bg-black/40 border-b border-gold/30 px-4 py-3 text-lavender focus:border-lavenderPurple focus:shadow-[0_0_15px_var(--lavender-header)] focus:outline-none focus:bg-black/60 transition-all font-sans uppercase text-sm"
-                        value={formData.time}
-                        onChange={e => setFormData({...formData, time: e.target.value})}
-                    />
-                </div>
+            <div className="idle-field">
+              <Eyebrow tone="meta">Origin Point</Eyebrow>
+              <input
+                type="text"
+                className={`idle-input${errors.location ? ' idle-input--error' : ''}`}
+                placeholder="city, country"
+                value={formData.location}
+                onChange={(e) => setField('location', e.target.value)}
+                autoComplete="address-level2"
+              />
             </div>
 
-            {/* Origin Point */}
-            <div>
-                <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple mb-3 font-serif">Origin Point</label>
-                <input
-                    type="text"
-                    placeholder="CITY, COUNTRY"
-                    className="w-full bg-black/40 border-b border-gold/30 px-4 py-3 text-lavender focus:border-lavenderPurple focus:shadow-[0_0_15px_var(--lavender-header)] focus:outline-none focus:bg-black/60 transition-all font-sans placeholder-lavenderDim/20"
-                    value={formData.location}
-                    onChange={e => setFormData({...formData, location: e.target.value})}
-                />
+            <div className="idle-field">
+              <Eyebrow tone="meta">Path</Eyebrow>
+              <div className="idle-path" role="radiogroup" aria-label="Path">
+                {(['feminine', 'masculine'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    role="radio"
+                    aria-checked={formData.gender === g}
+                    className={`idle-path-option${formData.gender === g ? ' idle-path-option--active' : ''}`}
+                    onClick={() => setFormData((prev) => ({ ...prev, gender: g }))}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
             </div>
-        </div>
 
-        {/* Biometric Uplink */}
-        <div className="space-y-4 relative z-10 pt-4">
-            <label className="block text-xs uppercase tracking-[0.2em] text-lavenderPurple font-serif text-center mb-6">Biometric Uplink</label>
-            {!image ? (
-                <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-[1px] border-dashed border-gold rounded-[8px] h-40 flex flex-col items-center justify-center cursor-pointer hover:bg-gold/5 transition-all group gap-4"
-                >
-                    <Camera className="w-8 h-8 text-gold group-hover:scale-110 transition-transform" />
-                    <span className="text-xs text-gold font-serif tracking-widest uppercase opacity-80 group-hover:opacity-100">Offer your likeness to the mirror</span>
-                </div>
-            ) : (
-                <div className="flex justify-center items-center py-2 relative">
-                    <div className="relative w-[200px] h-[200px] rounded-full border-[3px] border-gold shadow-[0_0_30px_rgba(212,175,55,0.3)] overflow-hidden">
-                        <img 
-                            src={image} 
-                            alt="Reflection" 
-                            className="w-full h-full object-cover transform scale-105" 
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none"></div>
-                    </div>
-                    
-                    <button 
-                        type="button"
-                        onClick={() => setImage(null)}
-                        className="absolute top-0 right-1/2 translate-x-[90px] translate-y-[0px] bg-black/80 p-2 rounded-full text-gold border border-gold hover:bg-gold hover:text-black transition-all shadow-md z-20"
-                        title="Clear Mirror"
+            <div className="idle-break" aria-hidden="true">
+              <Ornament />
+            </div>
+
+            <div className="idle-field">
+              <Eyebrow tone="meta">Offer Your Likeness</Eyebrow>
+              <div
+                className={`idle-dropzone${image ? ' idle-dropzone--filled' : ''}${isDragging ? ' idle-dropzone--drag' : ''}${errors.image ? ' idle-input--error' : ''}`}
+                onClick={() => !image && fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+              >
+                {image ? (
+                  <>
+                    <img src={image} alt="your likeness" className="idle-dropzone-image" />
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setImage(null); }}
+                      aria-label="Remove photo"
+                      style={{
+                        position: 'absolute',
+                        top: 'var(--mm-s-2)',
+                        right: 'var(--mm-s-2)',
+                        background: 'rgba(7,7,16,0.7)',
+                        border: '1px solid var(--mm-inscription)',
+                        color: 'var(--mm-lumen)',
+                        width: 32,
+                        height: 32,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
                     >
-                        <X className="w-4 h-4" />
+                      <X size={14} />
                     </button>
-                </div>
-            )}
-            <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleFileChange} 
-            />
-        </div>
+                  </>
+                ) : (
+                  <div className="idle-dropzone-empty">
+                    <Camera size={28} strokeWidth={1.25} color="var(--mm-inscription)" />
+                    <span className="idle-dropzone-empty-label">Offer your likeness</span>
+                    <span className="idle-dropzone-empty-hint">
+                      the photograph carries your face into the archetype
+                    </span>
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+            </div>
 
-        <button 
-            type="submit" 
-            className="w-full bg-gold text-black font-serif font-bold py-5 rounded-[4px] shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:shadow-[0_0_35px_rgba(212,175,55,0.6)] hover:scale-[1.01] active:scale-[0.99] transition-all duration-500 uppercase tracking-[0.2em] relative z-10 mt-8"
-        >
-            Initiate Sequence
-        </button>
-      </form>
-    </div>
+            <div className="idle-submit-row">
+              <CTA type="submit" variant="primary">Descend</CTA>
+            </div>
+          </form>
+        </main>
+      </div>
+    </Surface>
   );
 };
 

@@ -121,30 +121,20 @@ const App: React.FC = () => {
     }
   };
 
+  // Redesign flow: form-first, no auth gate at the front door.
+  // The Auth component + session code stay in the file for the email-capture
+  // step (deferred). IDLE renders InputForm directly with its own Surface,
+  // so it bypasses ObsidianContainer's 600px centered constraint.
+  if (appState === AppState.IDLE) {
+    return <InputForm onSubmit={handleInitiate} />;
+  }
+
   if (sessionLoading) {
     return <ObsidianContainer><div /></ObsidianContainer>;
   }
 
-  if (!session) {
-    return <ObsidianContainer><Auth /></ObsidianContainer>;
-  }
-
   return (
     <ObsidianContainer>
-      {appState === AppState.IDLE && (
-        <>
-          <InputForm onSubmit={handleInitiate} />
-          <div className="text-center mt-6">
-            <button
-              onClick={signOut}
-              className="text-gray-500 text-[10px] tracking-widest uppercase hover:text-gold"
-            >
-              Sign Out
-            </button>
-          </div>
-        </>
-      )}
-
       {[AppState.ANALYZING, AppState.COMMUNING, AppState.MANIFESTING].includes(appState) && (
         <LoadingOracle state={appState} />
       )}
