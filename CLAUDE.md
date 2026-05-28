@@ -108,17 +108,25 @@ The current downloadable revelation strips body copy into a too-narrow column, f
 - **In-app reading is editorial web. The share card is the separate 1080×1920 artifact.** Share-card framing must not leak into the in-app layout.
 
 ### Constraints (locked, not in scope to change)
-- State machine: IDLE → ANALYZING → COMMUNING → MANIFESTING → REVEALED stays as-is.
+- State machine: IDLE → ANALYZING → MANIFESTING → REVEALED stays as-is.
 - Share card framing: 1080×1920 (9:16), single Descent layout, render harness (`share-preview.html` + `scripts/render-share-card.mjs`) keeps working.
 - Image pipeline: Gemini 2.5 Flash narrative + vision traits → Gemini 2.5 Flash Image with reference photo. Not regressing.
 
+### Flow change locked this session — form-first, email-on-download
+- **No auth gate up front.** The sign-in modal ("THE MIRROR / IDENTIFY YOURSELF TO DESCEND") is dropped from the primary flow. InputForm IS the front door.
+- **SHARE PORTRAIT stays seamless.** One-tap native share / Instagram, no friction, no email.
+- **FULL REVELATION download is email-gated.** Clicking it triggers a small email-capture step → the revelation is emailed to the user. Email becomes the soft account; no password.
+- **Existing Supabase auth code stays for now.** The redesign just bypasses the modal visually; code-path cleanup is a separate decision.
+- **Loading states drop the mono footer line entirely** (no `system.attuning_to_signal…` strip).
+
 ### Screens in scope (redesign order)
-1. IDLE (App)
-2. InputForm
-3. ANALYZING / COMMUNING / MANIFESTING (loading states)
-4. REVEALED → ResultReveal SCRIPTURE phase
-5. ResultReveal MANIFESTATION phase (hero portrait + archetype lockup + Cosmic Code/Celestial Signature strip)
-6. ShareCard (last — must respect locked 1080×1920 framing)
+1. IDLE / InputForm (one screen — the front door)
+2. ANALYZING (loading)
+3. MANIFESTING (loading)
+4. REVEALED — Scripture phase
+5. REVEALED — Manifestation phase (hero portrait + archetype lockup + Cosmic Code / Celestial Signature)
+6. Email-capture micro-step (new — triggered by FULL REVELATION download)
+7. ShareCard (last — must respect locked 1080×1920 framing)
 
 ### Process for this redesign
 1. ~~**Direction interview**~~ — DONE this thread.
