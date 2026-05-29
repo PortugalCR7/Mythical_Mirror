@@ -109,9 +109,17 @@ const App: React.FC = () => {
       };
 
       setResult(finalizedResult);
-      await saveReading(finalizedResult);
+      // Persistence is best-effort under the form-first flow: without a
+      // session, saveReading throws 'Not authenticated' — that shouldn't
+      // crash the reveal. The reading becomes persistent later at the
+      // email-capture step (screen 6) once that backend wires up.
+      try {
+        await saveReading(finalizedResult);
+      } catch (err) {
+        console.warn('[saveReading] skipped:', (err as Error).message);
+      }
 
-      // STATE TRANSITION: Only move to REVEALED if we have a result. 
+      // STATE TRANSITION: Only move to REVEALED if we have a result.
       // The image check is already handled by finalImage being undefined if invalid.
       setAppState(AppState.REVEALED);
     } catch (err: any) {
