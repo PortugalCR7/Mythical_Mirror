@@ -1,56 +1,53 @@
 /*
-  InputForm.css — Screen 1 (IDLE) layout.
-  Asymmetric two-column grid on desktop: vertical inscription rail on the
-  left, editorial form column offset to the right of center, breathing
-  negative space on the right. Single column on mobile with the rail
-  collapsed to a horizontal eyebrow.
+  InputForm.css — Screen 1 (IDLE), v2.
 
-  Field treatment: bare underline inputs. No cards, no rounded panels —
-  the obsidian field IS the surface, not a backdrop.
+  Reverted the v1 asymmetric / right-justified layout per user feedback.
+  Now: hero block centered at top, form panel centered with a hairline
+  gold border + faint obsidian-rise fill, footer wordmark below. Single
+  column on every viewport. Tighter internal spacing than v1 to remove
+  the empty-space feel.
+
+  The brief's "no card on a card" rule is overridden here per the user's
+  call — containment helps the form feel intuitive and complete.
 */
 
-.idle-frame {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) min(600px, calc(100% - 192px)) 96px;
-  min-height: 100vh;
+.idle-page {
   position: relative;
   z-index: 1;
-}
-
-.idle-rail {
-  grid-column: 1;
-  padding-top: var(--mm-s-5);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-}
-
-.idle-column {
-  grid-column: 3;
-  padding: var(--mm-s-5) 0;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding: var(--mm-s-5) var(--mm-gutter);
+  gap: var(--mm-s-4);
 }
 
-/* Hero block: display headline + sub-headline + ornament break */
+/* Hero — sits above the form, centered */
 .idle-hero {
-  margin-bottom: var(--mm-s-5);
+  text-align: center;
+  max-width: var(--mm-col-reading);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mm-s-2);
 }
+.idle-hero .mm-display { text-align: center; }
 .idle-subhead {
-  margin: var(--mm-s-2) 0 0 0;
+  margin: 0;
   font-family: var(--mm-font-body);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(20px, 2.2vw, 26px);
-  line-height: 1.3;
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.4;
   color: var(--mm-lumen-soft);
 }
+
 .idle-break {
   display: flex;
   align-items: center;
   gap: var(--mm-s-2);
   color: var(--mm-inscription);
-  margin: var(--mm-s-4) 0 var(--mm-s-4);
+  width: 100%;
 }
 .idle-break::before,
 .idle-break::after {
@@ -61,24 +58,35 @@
   opacity: 0.35;
 }
 
-/* Form rhythm */
-.idle-form { display: flex; flex-direction: column; gap: var(--mm-s-4); }
-.idle-field { display: flex; flex-direction: column; gap: var(--mm-s-2); }
+/* Form panel — the containment */
+.idle-card {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(14, 14, 26, 0.55);
+  border: 1px solid rgba(198, 139, 60, 0.4);
+  padding: var(--mm-s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-3);
+}
+
+.idle-form { display: flex; flex-direction: column; gap: var(--mm-s-3); }
+.idle-field { display: flex; flex-direction: column; gap: var(--mm-s-1); }
 .idle-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--mm-s-3);
 }
 
-/* Bare underline inputs — no card, no rounded bg */
+/* Bare underline inputs */
 .idle-input {
   appearance: none;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgba(198, 139, 60, 0.35);
+  border-bottom: 1px solid rgba(198, 139, 60, 0.4);
   padding: var(--mm-s-2) 0;
   font-family: var(--mm-font-body);
-  font-size: var(--mm-type-body-lg);
+  font-size: var(--mm-type-body);
   color: var(--mm-lumen);
   outline: none;
   transition: border-color var(--mm-dur-bloom) var(--mm-ease-bloom);
@@ -87,17 +95,28 @@
 }
 .idle-input::placeholder { color: var(--mm-lavender-dim); font-style: italic; }
 .idle-input:focus { border-bottom-color: var(--mm-inscription); }
-.idle-input--error { border-bottom-color: var(--mm-ember); animation: idle-error-bloom 600ms ease; }
+.idle-input--error {
+  border-bottom-color: var(--mm-ember);
+  animation: idle-error-bloom 600ms ease;
+}
 @keyframes idle-error-bloom {
-  0%   { opacity: 0.4; }
-  50%  { opacity: 1; }
+  0%   { opacity: 0.5; }
   100% { opacity: 1; }
 }
-.idle-hint {
+
+/* Inline error message — appears above submit if validation fails.
+   This was the missing feedback in v1 — only the rule-flash was used,
+   easy to miss, made the submit feel like a dead button. */
+.idle-error-msg {
+  margin: 0;
+  padding: var(--mm-s-2) var(--mm-s-3);
+  border: 1px solid var(--mm-ember);
+  background: rgba(184, 74, 46, 0.08);
   font-family: var(--mm-font-body);
   font-style: italic;
-  font-size: 13px;
-  color: var(--mm-lavender-dim);
+  font-size: 14px;
+  color: var(--mm-ember);
+  text-align: center;
 }
 
 /* Path selector — two bare text buttons with selected-state rule */
@@ -123,10 +142,10 @@
   border-bottom-color: var(--mm-inscription);
 }
 
-/* Photo dropzone — hairline solid border, NOT dashed (altar not form-field) */
+/* Photo dropzone — shorter than v1 (was 280px, lots of empty space) */
 .idle-dropzone {
   position: relative;
-  height: 280px;
+  height: 180px;
   border: 1px solid rgba(198, 139, 60, 0.45);
   display: flex;
   align-items: center;
@@ -138,18 +157,19 @@
 }
 .idle-dropzone:hover { border-color: var(--mm-inscription); background: rgba(198, 139, 60, 0.04); }
 .idle-dropzone--drag { border-color: var(--mm-inscription); background: rgba(198, 139, 60, 0.08); }
-.idle-dropzone--filled { cursor: default; padding: 0; }
+.idle-dropzone--filled { cursor: default; }
 .idle-dropzone-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--mm-s-2);
+  gap: var(--mm-s-1);
   color: var(--mm-antique);
   text-align: center;
-  padding: var(--mm-s-3);
+  padding: var(--mm-s-2);
 }
 .idle-dropzone-empty-label {
   font-family: var(--mm-font-display);
+  font-weight: 500;
   font-size: var(--mm-type-eyebrow);
   letter-spacing: var(--mm-track-eyebrow);
   text-transform: uppercase;
@@ -158,7 +178,7 @@
 .idle-dropzone-empty-hint {
   font-family: var(--mm-font-body);
   font-style: italic;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--mm-lavender-dim);
   max-width: 280px;
 }
@@ -168,44 +188,30 @@
   object-fit: cover;
   display: block;
 }
-.idle-dropzone-replace {
-  margin-top: var(--mm-s-2);
-  align-self: flex-start;
-}
 
-/* Submit row */
+/* Submit — centered, prominent */
 .idle-submit-row {
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--mm-s-3);
-  margin-top: var(--mm-s-3);
+  justify-content: center;
+  margin-top: var(--mm-s-2);
+}
+.idle-submit-row .mm-cta { min-width: 220px; }
+
+/* Footer wordmark */
+.idle-footer {
+  color: var(--mm-antique);
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  margin-top: var(--mm-s-2);
 }
 
-/* ----- Mobile (< 760px) ----- */
-@media (max-width: 760px) {
-  .idle-frame {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-  .idle-rail {
-    grid-column: 1;
-    grid-row: 1;
-    padding: var(--mm-s-3) var(--mm-gutter) 0;
-    justify-content: flex-start;
-  }
-  /* Collapse vertical rail to horizontal eyebrow on mobile */
-  .idle-rail .mm-rail {
-    writing-mode: horizontal-tb;
-    transform: none;
-  }
-  .idle-column {
-    grid-column: 1;
-    grid-row: 2;
-    padding: var(--mm-s-3) var(--mm-gutter) var(--mm-s-5);
-  }
-  .idle-row { grid-template-columns: 1fr; gap: var(--mm-s-3); }
-  .idle-submit-row { justify-content: stretch; }
-  .idle-submit-row .mm-cta { width: 100%; }
-  .idle-dropzone { height: 240px; }
+@media (max-width: 640px) {
+  .idle-page { padding: var(--mm-s-3) var(--mm-gutter); gap: var(--mm-s-3); }
+  .idle-card { padding: var(--mm-s-3); }
+  .idle-row { grid-template-columns: 1fr; gap: var(--mm-s-2); }
+  .idle-submit-row .mm-cta { width: 100%; min-width: 0; }
+  .idle-dropzone { height: 160px; }
 }

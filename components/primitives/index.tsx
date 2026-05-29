@@ -88,10 +88,10 @@ export const MetaPair: React.FC<{ label: string; value: React.ReactNode; classNa
 /* ---------- CTA ---------- */
 type CTAVariant = 'inscription' | 'primary' | 'quiet';
 export const CTA: React.FC<ButtonProps & { variant?: CTAVariant }> = ({
-  variant = 'inscription', className, children, ...rest
+  variant = 'inscription', type = 'button', className, children, ...rest
 }) => (
   <button
-    type="button"
+    type={type}
     className={cx('mm-cta', variant !== 'inscription' && `mm-cta--${variant}`, className)}
     {...rest}
   >
