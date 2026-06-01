@@ -13,11 +13,15 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
   const [viewState, setViewState] = React.useState<'SCRIPTURE' | 'MANIFESTATION'>('SCRIPTURE');
 
   const exportAsImage = async () => {
-    const node = document.getElementById('mythic-card');
+    const node = document.getElementById('revelation-full');
     if (node) {
-      const dataUrl = await toPng(node, { cacheBust: true });
+      const dataUrl = await toPng(node, { cacheBust: true, backgroundColor: '#000000' });
       const link = document.createElement('a');
-      link.download = `revelation-${result.id}.png`;
+      const date = new Date(result.timestamp).toISOString().split('T')[0];
+      const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      const archetypeName = sanitize(result.archetype || 'Archetype');
+      const userName = sanitize(result.birthData?.name || 'Unknown');
+      link.download = `${archetypeName}_${date}_${userName}.png`;
       link.href = dataUrl;
       link.click();
     }
@@ -51,6 +55,7 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
   // MANIFESTATION PHASE (The Full Dashboard)
   return (
     <div className="mythic-container max-w-5xl mx-auto py-10 px-4 animate-fade-in">
+      <div id="revelation-full" className="bg-black">
       <div id="mythic-card" className="bg-black border border-gold/20 rounded-2xl overflow-hidden shadow-2xl relative">
         {/* Subtle Gradient Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-64 bg-gold/5 blur-[120px]" />
@@ -214,6 +219,8 @@ const ResultReveal: React.FC<Props> = ({ result, onReset }) => {
           })}
         </div>
       </div>
+
+      </div>{/* end #revelation-full */}
 
       {/* SYSTEM CONTROLS */}
       <div className="flex justify-center gap-12 mt-12 pb-12">

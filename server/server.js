@@ -18,7 +18,6 @@ dotenv.config();
 const app = express();
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-
 const PORT = process.env.PORT || 5001;
 
 // Middleware
@@ -26,16 +25,33 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for base64 images
 
 // Initialize Vertex AI
+// Production (Vercel): credentials come from GOOGLE_CREDENTIALS_BASE64 env var
+// Local dev: credentials come from GOOGLE_APPLICATION_CREDENTIALS file path
 const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.VITE_GCP_PROJECT_ID;
 const location = process.env.GOOGLE_CLOUD_LOCATION || process.env.VITE_GCP_LOCATION || 'us-central1';
 
 if (!project) {
     console.error("ERROR: Google Cloud Project ID is missing.");
-    console.error("Please set GOOGLE_CLOUD_PROJECT in .env or VITE_GCP_PROJECT_ID in .env.local");
+    console.error("Please set GOOGLE_CLOUD_PROJECT in Vercel or VITE_GCP_PROJECT_ID in .env.local");
     process.exit(1);
 }
 
-const vertex_ai = new VertexAI({ project: project, location: location });
+let vertexAuthOptions = {};
+if (process.env.GOOGLE_CREDENTIALS_BASE64) {
+    try {
+        const credentials = JSON.parse(
+            Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf-8')
+        );
+        vertexAuthOptions = { googleAuthOptions: { credentials } };
+        console.log("[Auth] Using base64-encoded service account credentials.");
+    } catch (e) {
+        console.error("[Auth] Failed to parse GOOGLE_CREDENTIALS_BASE64:", e.message);
+    }
+} else {
+    console.log("[Auth] Using GOOGLE_APPLICATION_CREDENTIALS file path.");
+}
+
+const vertex_ai = new VertexAI({ project, location, ...vertexAuthOptions });
 const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 // --- ROUTES ---
@@ -67,9 +83,8 @@ app.post('/api/generate-brief', async (req, res) => {
         }
 
         const hasBirthData = !!(userData.date && userData.location);
-        const MYTHIC_ENV_CURRENT = process.env.MYTHIC_ENV_CURRENT || "The lush, salt-mist jungle of Nosara, Costa Rica";
-        const MYTHIC_ENV_ANCHOR = process.env.MYTHIC_ENV_ANCHOR || "The limestone, dry-creek bedrock of Austin, Texas";
-        const currentContext = `Present Realm: ${MYTHIC_ENV_CURRENT}. Ancestral Anchor: ${MYTHIC_ENV_ANCHOR}.`;
+        const userLocation = userData.location ? userData.location.trim() : null;
+        const currentContext = userLocation ? `Place of Origin: ${userLocation}.` : null;
 
         const dynamicInstruction = getOracleDispatch(userData);
         const regionalStory = getRegionalStory(userData.archetypeRef.culture);
@@ -79,9 +94,9 @@ app.post('/api/generate-brief', async (req, res) => {
         Act as the Mythical Mirror. Your task is to generate a mythopoetic brief for the archetype: "${userData.archetypeRef.name}".
         Base the brief on this birth data: ${JSON.stringify(userData)}.
         
-        ENVIRONMENTAL DISPATCH:
-        Weave this atmospheric context into the reading where appropriate (grounding the user in their current reality and ancestral roots):
-        ${currentContext}
+        ${currentContext ? `ENVIRONMENTAL DISPATCH:
+        If it feels natural, you may weave the user's geographic origin into the reading:
+        ${currentContext}` : ''}
 
         To ground your narrative, incorporate themes and tones from the following ancient story snippet, which is associated with the archetype's cultural roots.
         <regional_story_snippet>
@@ -91,7 +106,7 @@ app.post('/api/generate-brief', async (req, res) => {
         CRITICAL RULES:
         1. ZERO TECHNICALITY: NEVER use terms like "Projector", "Bazi", "Gene Key". Use Mythic equivalents (e.g. "The Orchestrator").
         2. TONE: Ancient, high-mythic, poetic.
-        3. LOST SCRIPTURE (Descent): The 'descent' field MUST be a substantial narrative (150-200 words). Use double-line breaks (\n\n) to separate distinct thoughts or stanzas. Dark, subtractive, ancient. YOU MUST WEAVE the 'Environmental Dispatch' locations (Current Realm & Ancestral Anchor) into this origin story, describing how the soul fell from the stars into these specific earthly terrains.
+        3. LOST SCRIPTURE (Descent): The 'descent' field MUST be a substantial narrative (150-200 words). Use double-line breaks (\n\n) to separate distinct thoughts or stanzas. Dark, subtractive, ancient. Draw the soul's descent from the cosmos into the earthly realm using mythic, universal imagery — not literal place names unless the user's birth location is provided.
         4. LIKENESS LORE: If a photo or description is provided, interpret the subject's features as an "Architectural Covenant". LIMIT TO 20 WORDS MAX. Format as a subtle, italicized bridge.
 
         DATA POINTS & MYTHIC BRIDGE:
@@ -109,9 +124,6 @@ app.post('/api/generate-brief', async (req, res) => {
         MYTHIC SYNTHESIS TEMPLATES (TONAL BENCHMARK):
         1. "You are not meant to toil in the fields, but to stand upon the hill and see how the rivers should flow." (The Orchestrator)
         2. "Deep within the obsidian depths, a vast wisdom remains unperturbed by the surface winds." (The Reservoir)
-
-        USER CONTEXT:
-        - If residency is provided, weave "Environmental Cues" (e.g., Austin -> dry heat, stone, rivers) into the narrative.
 
         Return a JSON object with this exact structure, ensuring 'archetype_name' is ALWAYS "${userData.archetypeRef.name}":
         {
@@ -201,32 +213,38 @@ app.post('/api/generate-brief', async (req, res) => {
 
 
 /**
- * BIOMETRIC UPLINK: Generates Mythic Image from User Photo
- */
-/**
- * BIOMETRIC UPLINK: Generates Mythic Image with Subject Reference (Likeness Lock)
+ * BIOMETRIC UPLINK: Generates Mythic Archetypal Image
+ * Uses Gemini 2.0 Flash with IMAGE responseModality — the only image-generation
+ * path available via the @google-cloud/vertexai SDK v1.x.
+ * (imagen-3.0-fast-001 is NOT accessible via getGenerativeModel — wrong API surface.)
  */
 app.post('/api/generate-mythic-image', async (req, res) => {
     try {
-        const { userImage, visualDescription, techId, userName } = req.body;
+        const { userImage, visualDescription } = req.body;
 
-        const base64Image = userImage.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-        // const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-fast-001' }); 
-        // Re-instantiating model inside loop or here is fine, but original code had it here. 
-        // The user's block puts it here:
-        const imagenModel = vertex_ai.getGenerativeModel({ model: 'imagen-3.0-fast-001' });
+        const base64Image = userImage.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+
+        // Gemini 2.0 Flash with IMAGE output — supports multimodal input (reference photo)
+        const imageModel = vertex_ai.getGenerativeModel({
+            model: 'gemini-2.0-flash-preview-image-generation',
+            generationConfig: {
+                responseModalities: ['IMAGE', 'TEXT'],
+            }
+        });
 
         let attempts = 0;
-        let imagenResponse = null;
+        let imageResponse = null;
 
         // THE PATIENCE LOOP
-        while (attempts < 3 && !imagenResponse) {
+        while (attempts < 3 && !imageResponse) {
             try {
-                imagenResponse = await imagenModel.generateContent({
+                imageResponse = await imageModel.generateContent({
                     contents: [{
                         role: 'user',
                         parts: [
-                            { text: `A hyper-realistic 8K cinematic portrait as ${visualDescription}.` },
+                            {
+                                text: `Transform this person into their mythic archetypal form. Do not simply overlay symbols on a photo — fully reimagine them as the living embodiment of this archetype. ${visualDescription}. Cinematic, 8K, sacred dramatic lighting, mythic atmosphere. The result should feel like an ancient painting brought to life, not a photo with costume additions.`
+                            },
                             { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
                         ]
                     }]
@@ -242,11 +260,18 @@ app.post('/api/generate-mythic-image', async (req, res) => {
             }
         }
 
-        if (!imagenResponse) throw new Error("Manifestation timed out. Defaulting to headshot.");
+        if (!imageResponse) throw new Error("Manifestation timed out.");
 
-        const generatedContent = imagenResponse.response.candidates?.[0]?.content?.parts?.[0];
-        const finalImage = `data:${generatedContent.inlineData.mimeType};base64,${generatedContent.inlineData.data}`;
+        // Find the image part — Gemini image responses embed inlineData in parts
+        const parts = imageResponse.response.candidates?.[0]?.content?.parts || [];
+        const imagePart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
 
+        if (!imagePart) {
+            console.error("[Biometric Uplink] No image part found. Parts returned:", JSON.stringify(parts));
+            throw new Error("The Oracle returned no image. Model may not support IMAGE modality in this region.");
+        }
+
+        const finalImage = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
         res.json({ image: finalImage });
 
     } catch (error) {
@@ -255,6 +280,11 @@ app.post('/api/generate-mythic-image', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`[Mythical Mirror Backend] Listening on http://localhost:${PORT}`);
-});
+// Only bind to a port in local dev — Vercel invokes the handler directly
+if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`[Mythical Mirror Backend] Listening on http://localhost:${PORT}`);
+    });
+}
+
+export default app;
