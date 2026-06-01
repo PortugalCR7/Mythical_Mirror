@@ -46,9 +46,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const photoBase64 = photoMatch ? photoMatch[2] : '';
     const hasPhoto = !!photoBase64;
 
-    const MYTHIC_ENV_CURRENT = process.env.MYTHIC_ENV_CURRENT || 'The lush, salt-mist jungle of Nosara, Costa Rica';
-    const MYTHIC_ENV_ANCHOR = process.env.MYTHIC_ENV_ANCHOR || 'The limestone, dry-creek bedrock of Austin, Texas';
-    const currentContext = `Present Realm: ${MYTHIC_ENV_CURRENT}. Ancestral Anchor: ${MYTHIC_ENV_ANCHOR}.`;
+    const userLocation = userData.location ? String(userData.location).trim() : null;
+    const currentContext = userLocation ? `Place of Origin: ${userLocation}.` : null;
 
     const dynamicInstruction = getOracleDispatch(userData);
     const regionalStory = getRegionalStory(userData.archetypeRef.culture);
@@ -58,9 +57,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         Act as the Mythical Mirror. Your task is to generate a mythopoetic brief for the archetype: "${userData.archetypeRef.name}".
         Base the brief on this birth data: ${JSON.stringify(userData)}.
 
-        ENVIRONMENTAL DISPATCH:
-        Weave this atmospheric context into the reading where appropriate (grounding the user in their current reality and ancestral roots):
-        ${currentContext}
+        ${currentContext ? `ENVIRONMENTAL DISPATCH:
+        If it feels natural, you may weave the user's geographic origin into the reading:
+        ${currentContext}` : ''}
 
         To ground your narrative, incorporate themes and tones from the following ancient story snippet, which is associated with the archetype's cultural roots.
         <regional_story_snippet>
@@ -70,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         CRITICAL RULES:
         1. ZERO TECHNICALITY: NEVER use terms like "Projector", "Bazi", "Gene Key". Use Mythic equivalents (e.g. "The Orchestrator").
         2. TONE: Ancient, high-mythic, poetic.
-        3. LOST SCRIPTURE (Descent): The 'descent' field MUST be a substantial narrative (150-200 words). Use double-line breaks (\\n\\n) to separate distinct thoughts or stanzas. Dark, subtractive, ancient. YOU MUST WEAVE the 'Environmental Dispatch' locations (Current Realm & Ancestral Anchor) into this origin story, describing how the soul fell from the stars into these specific earthly terrains.
+        3. LOST SCRIPTURE (Descent): The 'descent' field MUST be a substantial narrative (150-200 words). Use double-line breaks (\\n\\n) to separate distinct thoughts or stanzas. Dark, subtractive, ancient. Draw the soul's descent from the cosmos into the earthly realm using mythic, universal imagery — not literal place names unless the user's birth location is provided.
         4. LIKENESS LORE: If a photo or description is provided, interpret the subject's features as an "Architectural Covenant". LIMIT TO 20 WORDS MAX. Format as a subtle, italicized bridge.
 
         DATA POINTS & MYTHIC BRIDGE:
@@ -88,9 +87,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         MYTHIC SYNTHESIS TEMPLATES (TONAL BENCHMARK):
         1. "You are not meant to toil in the fields, but to stand upon the hill and see how the rivers should flow." (The Orchestrator)
         2. "Deep within the obsidian depths, a vast wisdom remains unperturbed by the surface winds." (The Reservoir)
-
-        USER CONTEXT:
-        - If residency is provided, weave "Environmental Cues" (e.g., Austin -> dry heat, stone, rivers) into the narrative.
 
         Return a JSON object with this exact structure, ensuring 'archetype_name' is ALWAYS "${userData.archetypeRef.name}":
         {
