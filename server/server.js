@@ -1,17 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getArchetype } from './archetypeLoader.js';
 import { getMythicCore } from '../mythicTranslator.js';
-import { augmentMythicPrompt } from './mythic_gen.js';
+import { augmentMythicPrompt, TRAIT_EXTRACTION_PROMPT } from './mythic_gen.js';
 import { getRegionalStory } from './regionalLoader.js';
 import { getOracleDispatch } from '../config/dispatch.js';
 
-// Load environment variables from .env.local (if it exists) and .env
 dotenv.config({ path: '.env.local' });
 dotenv.config();
 
@@ -20,48 +19,70 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const PORT = process.env.PORT || 5001;
 
-// Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for base64 images
+app.use(bodyParser.json({ limit: '50mb' }));
 
-// Initialize Vertex AI
-// Production (Vercel): credentials come from GOOGLE_CREDENTIALS_BASE64 env var
-// Local dev: credentials come from GOOGLE_APPLICATION_CREDENTIALS file path
-const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.VITE_GCP_PROJECT_ID;
-const location = process.env.GOOGLE_CLOUD_LOCATION || process.env.VITE_GCP_LOCATION || 'us-central1';
-
-if (!project) {
-    console.error("ERROR: Google Cloud Project ID is missing.");
-    console.error("Please set GOOGLE_CLOUD_PROJECT in Vercel or VITE_GCP_PROJECT_ID in .env.local");
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+if (!apiKey) {
+    console.error("ERROR: GEMINI_API_KEY is not set. Add it to .env or .env.local.");
     process.exit(1);
 }
 
-let vertexAuthOptions = {};
-if (process.env.GOOGLE_CREDENTIALS_BASE64) {
-    try {
-        const credentials = JSON.parse(
-            Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString('utf-8')
-        );
-        vertexAuthOptions = { googleAuthOptions: { credentials } };
-        console.log("[Auth] Using base64-encoded service account credentials.");
-    } catch (e) {
-        console.error("[Auth] Failed to parse GOOGLE_CREDENTIALS_BASE64:", e.message);
+const ai = new GoogleGenAI({ apiKey });
+const TEXT_MODEL = 'gemini-2.5-flash';
+const IMAGE_MODEL = process.env.MYTHIC_IMAGE_MODEL || 'gemini-2.5-flash-image';
+
+function parseMaybeJson(text) {
+    if (!text) return null;
+    try { return JSON.parse(text); } catch {}
+    const fence = text.match(/```json([\s\S]*?)```/);
+    if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+        try { return JSON.parse(text.substring(first, last + 1)); } catch {}
     }
-} else {
-    console.log("[Auth] Using GOOGLE_APPLICATION_CREDENTIALS file path.");
+    return null;
 }
 
-const vertex_ai = new VertexAI({ project, location, ...vertexAuthOptions });
-const generativeModel = vertex_ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+function parseDataUrl(dataUrl) {
+    if (typeof dataUrl !== 'string') return { mimeType: '', base64: '' };
+    const match = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.*)$/);
+    if (!match) return { mimeType: '', base64: '' };
+    return { mimeType: match[1], base64: match[2] };
+}
+
+function extractImageFromResponse(response) {
+    const parts = response?.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+        if (part?.inlineData?.data && part?.inlineData?.mimeType?.startsWith('image/')) {
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+    }
+    return null;
+}
+
+async function extractStructuredTraits(base64Image, mimeType) {
+    const response = await ai.models.generateContent({
+        model: TEXT_MODEL,
+        contents: [{
+            role: 'user',
+            parts: [
+                { text: TRAIT_EXTRACTION_PROMPT },
+                { inlineData: { mimeType, data: base64Image } },
+            ],
+        }],
+        config: { responseMimeType: 'application/json' },
+    });
+    return parseMaybeJson(response.text || '');
+}
 
 // --- ROUTES ---
 
-// Health Check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'Online', project: project || 'Pending Config' });
+    res.json({ status: 'Online', textModel: TEXT_MODEL, imageModel: IMAGE_MODEL });
 });
 
-// Root Route
 app.get('/', (req, res) => {
     res.send('The Mythical Mirror API is Online. Use /api/generate-brief for requests.');
 });
@@ -74,7 +95,7 @@ app.get('/', (req, res) => {
  */
 app.post('/api/generate-brief', async (req, res) => {
     try {
-        const { userData } = req.body;
+        const { userData, userImage } = req.body;
         if (!userData) {
             return res.status(400).json({ error: 'Missing user data.' });
         }
@@ -83,8 +104,11 @@ app.post('/api/generate-brief', async (req, res) => {
         }
 
         const hasBirthData = !!(userData.date && userData.location);
-        const userLocation = userData.location ? userData.location.trim() : null;
-        const currentContext = userLocation ? `Place of Origin: ${userLocation}.` : null;
+        const { mimeType, base64 } = parseDataUrl(userImage);
+        const hasPhoto = !!base64;
+        const MYTHIC_ENV_CURRENT = process.env.MYTHIC_ENV_CURRENT || "The lush, salt-mist jungle of Nosara, Costa Rica";
+        const MYTHIC_ENV_ANCHOR = process.env.MYTHIC_ENV_ANCHOR || "The limestone, dry-creek bedrock of Austin, Texas";
+        const currentContext = `Present Realm: ${MYTHIC_ENV_CURRENT}. Ancestral Anchor: ${MYTHIC_ENV_ANCHOR}.`;
 
         const dynamicInstruction = getOracleDispatch(userData);
         const regionalStory = getRegionalStory(userData.archetypeRef.culture);
@@ -94,9 +118,9 @@ app.post('/api/generate-brief', async (req, res) => {
         Act as the Mythical Mirror. Your task is to generate a mythopoetic brief for the archetype: "${userData.archetypeRef.name}".
         Base the brief on this birth data: ${JSON.stringify(userData)}.
         
-        ${currentContext ? `ENVIRONMENTAL DISPATCH:
-        If it feels natural, you may weave the user's geographic origin into the reading:
-        ${currentContext}` : ''}
+        ENVIRONMENTAL DISPATCH:
+        Weave this atmospheric context into the reading where appropriate (grounding the user in their current reality and ancestral roots):
+        ${currentContext}
 
         To ground your narrative, incorporate themes and tones from the following ancient story snippet, which is associated with the archetype's cultural roots.
         <regional_story_snippet>
@@ -106,7 +130,7 @@ app.post('/api/generate-brief', async (req, res) => {
         CRITICAL RULES:
         1. ZERO TECHNICALITY: NEVER use terms like "Projector", "Bazi", "Gene Key". Use Mythic equivalents (e.g. "The Orchestrator").
         2. TONE: Ancient, high-mythic, poetic.
-        3. LOST SCRIPTURE (Descent): The 'descent' field MUST be a substantial narrative (150-200 words). Use double-line breaks (\n\n) to separate distinct thoughts or stanzas. Dark, subtractive, ancient. Draw the soul's descent from the cosmos into the earthly realm using mythic, universal imagery — not literal place names unless the user's birth location is provided.
+        3. LOST SCRIPTURE (Descent): The 'descent' field MUST be a substantial narrative (150-200 words). Use double-line breaks (\n\n) to separate distinct thoughts or stanzas. Dark, subtractive, ancient. YOU MUST WEAVE the 'Environmental Dispatch' locations (Current Realm & Ancestral Anchor) into this origin story, describing how the soul fell from the stars into these specific earthly terrains.
         4. LIKENESS LORE: If a photo or description is provided, interpret the subject's features as an "Architectural Covenant". LIMIT TO 20 WORDS MAX. Format as a subtle, italicized bridge.
 
         DATA POINTS & MYTHIC BRIDGE:
@@ -124,6 +148,9 @@ app.post('/api/generate-brief', async (req, res) => {
         MYTHIC SYNTHESIS TEMPLATES (TONAL BENCHMARK):
         1. "You are not meant to toil in the fields, but to stand upon the hill and see how the rivers should flow." (The Orchestrator)
         2. "Deep within the obsidian depths, a vast wisdom remains unperturbed by the surface winds." (The Reservoir)
+
+        USER CONTEXT:
+        - If residency is provided, weave "Environmental Cues" (e.g., Austin -> dry heat, stone, rivers) into the narrative.
 
         Return a JSON object with this exact structure, ensuring 'archetype_name' is ALWAYS "${userData.archetypeRef.name}":
         {
@@ -151,54 +178,44 @@ app.post('/api/generate-brief', async (req, res) => {
           "one_liner": "A single, punchy quotable sentence summing up their essence"
         }`;
 
-        const result = await generativeModel.generateContent({
+        // Fan out: narrative generation and (if a photo is provided) vision-based
+        // trait extraction run in parallel on gemini-2.5-flash. The vision call
+        // used to happen serially inside /api/generate-mythic-image; hoisting it
+        // here removes a round-trip from the user-perceived MANIFESTING stage and
+        // lets the brief assemble a likeness-locked Imagen prompt up front.
+        const narrativePromise = ai.models.generateContent({
+            model: TEXT_MODEL,
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
+            config: { responseMimeType: "application/json" },
         });
 
-        const responseText = result.response.candidates[0].content.parts[0].text;
+        const traitsPromise = hasPhoto
+            ? extractStructuredTraits(base64, mimeType).catch(err => {
+                console.warn('[Biometric Uplink] Trait extraction failed:', err.message);
+                return null;
+            })
+            : Promise.resolve(null);
 
-        // ROBUST JSON EXTRACTION
-        let responseJson;
-        try {
-            // Attempt 1: Direct Parse
-            responseJson = JSON.parse(responseText);
-        } catch (e1) {
-            try {
-                // Attempt 2: Extract from Markdown ```json ... ```
-                const match = responseText.match(/```json([\s\S]*?)```/);
-                if (match) {
-                    responseJson = JSON.parse(match[1]);
-                } else {
-                    // Attempt 3: Find first '{' and last '}'
-                    const firstOpen = responseText.indexOf('{');
-                    const lastClose = responseText.lastIndexOf('}');
-                    if (firstOpen !== -1 && lastClose !== -1) {
-                        responseJson = JSON.parse(responseText.substring(firstOpen, lastClose + 1));
-                    } else {
-                        throw new Error("No JSON structure found.");
-                    }
-                }
-            } catch (e2) {
-                console.error("Failed to parse Gemini response:", responseText);
-                throw new Error("Gemini returned invalid JSON: " + e2.message);
-            }
+        const [narrativeResponse, physicalTraits] = await Promise.all([narrativePromise, traitsPromise]);
+
+        const responseJson = parseMaybeJson(narrativeResponse.text || '');
+        if (!responseJson) {
+            console.error("Failed to parse Gemini response:", responseText);
+            throw new Error("Gemini returned invalid JSON.");
         }
 
-        // Add hasBirthData to the response
         responseJson.hasBirthData = hasBirthData;
         responseJson.culture = userData.archetypeRef.culture;
+        responseJson.physical_traits = physicalTraits;
 
-        // If birth data is present, inject the full visual prompt
+        // Assemble the final Imagen prompt with the structured likeness baked in.
+        // The image endpoint becomes a thin Imagen renderer with no Vision call.
         if (responseJson.hasBirthData) {
             const archetype = getArchetype(responseJson.archetype_name);
             if (archetype) {
                 const imageRegionalStory = getRegionalStory(archetype.culture);
-                // Using a default tonal core as it's not present in the brief generation
                 const tonalCore = "Frequency, communal harmony, and the high-view perspective. Subterranean wisdom and abyssal clarity.";
-                responseJson.visual_attire = augmentMythicPrompt(archetype, "the subject", tonalCore, imageRegionalStory);
+                responseJson.visual_attire = augmentMythicPrompt(archetype, "the subject", tonalCore, imageRegionalStory, physicalTraits);
             }
         }
 
@@ -213,78 +230,57 @@ app.post('/api/generate-brief', async (req, res) => {
 
 
 /**
- * BIOMETRIC UPLINK: Generates Mythic Archetypal Image
- * Uses Gemini 2.0 Flash with IMAGE responseModality — the only image-generation
- * path available via the @google-cloud/vertexai SDK v1.x.
- * (imagen-3.0-fast-001 is NOT accessible via getGenerativeModel — wrong API surface.)
+ * MANIFESTATION: Renders the mythic portrait via Gemini 2.5 Flash Image.
+ * Feeds the reference photo so the actual face is preserved (true
+ * image-to-image), with the assembled mythic prompt directing the
+ * transfiguration into the archetype.
  */
 app.post('/api/generate-mythic-image', async (req, res) => {
     try {
-        const { userImage, visualDescription } = req.body;
+        const { visualDescription, userImage } = req.body;
+        if (!visualDescription || typeof visualDescription !== 'string') {
+            return res.status(400).json({ error: 'Missing visualDescription.' });
+        }
 
-        const base64Image = userImage.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+        const { mimeType, base64 } = parseDataUrl(userImage);
+        const parts = [{ text: visualDescription }];
+        if (base64) parts.push({ inlineData: { mimeType: mimeType || 'image/jpeg', data: base64 } });
 
-        // Gemini 2.0 Flash with IMAGE output — supports multimodal input (reference photo)
-        const imageModel = vertex_ai.getGenerativeModel({
-            model: 'gemini-2.0-flash-preview-image-generation',
-            generationConfig: {
-                responseModalities: ['IMAGE', 'TEXT'],
-            }
-        });
-
+        let finalImage = null;
         let attempts = 0;
-        let imageResponse = null;
+        let lastError = null;
 
-        // THE PATIENCE LOOP
-        while (attempts < 3 && !imageResponse) {
+        while (attempts < 3 && !finalImage) {
             try {
-                imageResponse = await imageModel.generateContent({
-                    contents: [{
-                        role: 'user',
-                        parts: [
-                            {
-                                text: `Transform this person into their mythic archetypal form. Do not simply overlay symbols on a photo — fully reimagine them as the living embodiment of this archetype. ${visualDescription}. Cinematic, 8K, sacred dramatic lighting, mythic atmosphere. The result should feel like an ancient painting brought to life, not a photo with costume additions.`
-                            },
-                            { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
-                        ]
-                    }]
+                const response = await ai.models.generateContent({
+                    model: IMAGE_MODEL,
+                    contents: [{ role: 'user', parts }],
+                    config: { responseModalities: ['IMAGE'] },
                 });
+                finalImage = extractImageFromResponse(response);
+                if (!finalImage) throw new Error('Flash Image returned no image data.');
             } catch (error) {
+                lastError = error;
                 if (error.status === 429 || error.code === 429 || error.message?.includes('429')) {
                     attempts++;
-                    console.warn(`[QUOTA] Rate limit hit. Attempt ${attempts}/3. Waiting 3s...`);
+                    console.warn(`[Manifestation] 429 on ${IMAGE_MODEL}. Attempt ${attempts}/3. Waiting 3s...`);
                     await sleep(3000);
-                } else {
-                    throw error;
+                    continue;
                 }
+                throw error;
             }
         }
 
-        if (!imageResponse) throw new Error("Manifestation timed out.");
+        if (!finalImage) throw lastError || new Error('Manifestation failed.');
 
-        // Find the image part — Gemini image responses embed inlineData in parts
-        const parts = imageResponse.response.candidates?.[0]?.content?.parts || [];
-        const imagePart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
-
-        if (!imagePart) {
-            console.error("[Biometric Uplink] No image part found. Parts returned:", JSON.stringify(parts));
-            throw new Error("The Oracle returned no image. Model may not support IMAGE modality in this region.");
-        }
-
-        const finalImage = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-        res.json({ image: finalImage });
+        res.json({ image: finalImage, model: IMAGE_MODEL });
 
     } catch (error) {
-        console.error("[Biometric Uplink] Failure:", error);
+        console.error("[Manifestation] Failure:", error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Only bind to a port in local dev — Vercel invokes the handler directly
-if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`[Mythical Mirror Backend] Listening on http://localhost:${PORT}`);
-    });
-}
-
-export default app;
+app.listen(PORT, () => {
+    console.log(`[Mythical Mirror Backend] Listening on http://localhost:${PORT}`);
+});
