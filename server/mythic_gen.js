@@ -1,7 +1,8 @@
 /**
  * Cultural Visual DNA — art direction per mythological tradition.
  * Each entry defines palette, style, setting, lighting, motifs, and negative guidance
- * for Imagen 3 portrait generation.
+ * for gemini-2.5-flash-image portrait generation (image-to-image; the user's
+ * reference photo is sent alongside the assembled prompt).
  */
 const CULTURE_DNA = {
   'Greek': {
@@ -225,9 +226,13 @@ function cleanTrait(value) {
 }
 
 /**
- * Turns a structured trait object (extracted by Gemini Vision) into the
- * PHYSICAL LIKENESS directive that anchors the Imagen prompt. Returns empty
- * string when no usable traits are present.
+ * Turns a structured trait object (extracted by Gemini Vision) into a short
+ * identity-anchor phrase folded into the SUBJECT beat of the prompt.
+ *
+ * The reference photo (passed to gemini-2.5-flash-image alongside the prompt)
+ * is what physically carries the likeness, so this is a light recognition cue —
+ * NOT a lock. It keeps the person identifiable while leaving the model free to
+ * transfigure. Returns empty string when no usable traits are present.
  */
 export function formatPhysicalLikeness(traits) {
   if (!traits || typeof traits !== 'object') return '';
@@ -240,13 +245,8 @@ export function formatPhysicalLikeness(traits) {
 
   const eye = [t.eyeShape, t.eyeColor].filter(Boolean).join(' ');
   if (eye) parts.push(`${eye} eyes`);
-  if (t.eyebrowShape) parts.push(`${t.eyebrowShape} eyebrows`);
 
-  if (t.noseShape) parts.push(`${t.noseShape} nose`);
-  if (t.lipShape) parts.push(`${t.lipShape} lips`);
-  if (t.cheekbones) parts.push(`${t.cheekbones} cheekbones`);
-  if (t.jawline) parts.push(`${t.jawline} jawline`);
-  if (t.faceShape) parts.push(`${t.faceShape} face shape`);
+  if (t.faceShape) parts.push(`${t.faceShape} face`);
 
   const hair = [t.hairLength, t.hairTexture, t.hairColor].filter(Boolean).join(' ');
   if (hair) parts.push(`${hair} hair`);
@@ -259,14 +259,19 @@ export function formatPhysicalLikeness(traits) {
 
   if (parts.length === 0) return '';
 
-  return `PHYSICAL LIKENESS (preserve exactly): ${parts.join(', ')}. Render these exact facial features faithfully — this is the same individual, transfigured into the archetype. Do not substitute generic mythic features, do not alter the bone structure, do not change the eye color or skin tone.`;
+  return parts.join(', ');
 }
 
 /**
- * Builds a structured, layered Imagen 3 prompt from archetype + cultural DNA.
- * Imagen 3 does not consume image inputs, so likeness travels through the
- * text prompt as a dedicated PHYSICAL LIKENESS directive assembled from
- * structured traits (extracted upstream by Gemini Vision).
+ * Builds the image prompt from archetype + cultural DNA.
+ *
+ * Production renders with gemini-2.5-flash-image (true image-to-image): the
+ * user's photo is sent to the model ALONGSIDE this text. The photo carries the
+ * likeness natively, so this prompt does NOT police the face — it supplies a
+ * light identity anchor and spends its weight on transfiguration and cultural
+ * art direction. Every line is meant to steer the model somewhere it wouldn't
+ * go on its own; generic quality incantations ("8K", "subsurface scattering")
+ * are deliberately omitted as noise.
  */
 export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject", tonalCore = "Ancient, sacred, and timeless.", regionalStory = "", physicalTraits = null) {
   const { name, culture, description } = archetype;
@@ -276,28 +281,26 @@ export function augmentMythicPrompt(archetype, userLikenessPrompt = "the subject
     ? regionalStory.split('.')[0].trim()
     : '';
 
-  const likenessDirective = formatPhysicalLikeness(physicalTraits);
+  const anchor = formatPhysicalLikeness(physicalTraits);
+  const anchorClause = anchor ? ` (${anchor})` : '';
 
-  const directives = [
-    `MYTHIC IDENTITY: ${name} — ${description} (${culture} tradition)`,
-    `SUBJECT: ${userLikenessPrompt}, physically transformed into ${name}. Preserve the subject's facial structure and features while manifesting the divine artifacts and presence of ${name}. This is a mythic portrait, not a costume.`,
-  ];
+  // Beat 1 — WHO + the transformation intent (identity anchored, fully transfigured)
+  const subject = `A cinematic, photorealistic portrait of the person in the reference image, reborn as ${name} — ${description}. The same individual: their face stays recognizably theirs${anchorClause}, but they are fully transfigured into the deity — divine luminosity, sacred adornment, the bearing and presence of a god. A true metamorphosis, not a costume or an overlay on a photo.`;
 
-  if (likenessDirective) directives.push(likenessDirective);
+  // Beat 2 — the cultural art lane (palette/scene/lighting + motifs as influence)
+  const artLane = `Drawn from the ${culture} tradition: ${dna.setting}. Palette of ${dna.palette}. ${dna.lighting}. The visual language of ${dna.style} informs the composition, color, and sacred motifs (${dna.motifs}) as natural adornment and setting — but the finish is photoreal, never illustrated or flat.`;
 
-  directives.push(
-    `SCENE: ${dna.setting}`,
-    `PALETTE: ${dna.palette}`,
-    `ARTISTIC STYLE: ${dna.style}. Ultra-detailed, photorealistic, award-winning portrait photography.`,
-    `LIGHTING: ${dna.lighting}`,
-    `SACRED MOTIFS: Weave in ${dna.motifs} as environmental and adornment details`,
-    `ATMOSPHERE: ${tonalCore}${regionalAtmosphere ? ` Lore texture: ${regionalAtmosphere}.` : ''}`,
-    `TECHNICAL: 8K resolution, sharp facial mesh, ultra-detailed sacred artifact and fabric textures, volumetric atmosphere, cinematic depth of field, subsurface skin scattering`,
-    `COMPOSITION: Divine 3/4 portrait angle, subject fills the frame, cosmic background depth, heroic vertical format`,
-    `AVOID: ${dna.avoid}, cartoon, anime, flat illustration, stock fantasy art, plastic skin texture, overexposed face, generic warrior pose`,
-  );
+  // Beat 3 — mood
+  const atmosphere = `Mood: ${tonalCore}${regionalAtmosphere ? ` ${regionalAtmosphere}.` : ''}`;
 
-  return directives.join('\n');
+  // Beat 4 — composition
+  const composition = `Heroic 3/4 portrait, the subject filling the frame, cosmic depth behind.`;
+
+  // Beat 5 — only load-bearing negatives (cultural stereotype guards + the
+  // illustrated/flat guard that the photoreal decision makes meaningful)
+  const avoid = `Avoid: ${dna.avoid}; cartoon, anime, flat illustration.`;
+
+  return [subject, artLane, atmosphere, composition, avoid].join('\n\n');
 }
 
 /**
