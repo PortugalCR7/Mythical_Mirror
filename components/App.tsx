@@ -109,9 +109,17 @@ const App: React.FC = () => {
       };
 
       setResult(finalizedResult);
-      await saveReading(finalizedResult);
+      // Persistence is best-effort under the form-first flow: without a
+      // session, saveReading throws 'Not authenticated' — that shouldn't
+      // crash the reveal. The reading becomes persistent later at the
+      // email-capture step (screen 6) once that backend wires up.
+      try {
+        await saveReading(finalizedResult);
+      } catch (err) {
+        console.warn('[saveReading] skipped:', (err as Error).message);
+      }
 
-      // STATE TRANSITION: Only move to REVEALED if we have a result. 
+      // STATE TRANSITION: Only move to REVEALED if we have a result.
       // The image check is already handled by finalImage being undefined if invalid.
       setAppState(AppState.REVEALED);
     } catch (err: any) {
@@ -121,38 +129,28 @@ const App: React.FC = () => {
     }
   };
 
+  // Redesign flow: form-first, no auth gate at the front door.
+  // The Auth component + session code stay in the file for the email-capture
+  // step (the soft-account hook). IDLE / loading / REVEALED render their own
+  // Surface, bypassing ObsidianContainer's 600px centered constraint.
+  if (appState === AppState.IDLE) {
+    return <InputForm onSubmit={handleInitiate} />;
+  }
+
   if (sessionLoading) {
     return <ObsidianContainer><div /></ObsidianContainer>;
   }
 
-  if (!session) {
-    return <ObsidianContainer><Auth /></ObsidianContainer>;
+  if ([AppState.ANALYZING, AppState.COMMUNING, AppState.MANIFESTING].includes(appState)) {
+    return <LoadingOracle state={appState} />;
+  }
+
+  if (appState === AppState.REVEALED && result) {
+    return <ResultReveal result={result} onReset={reset} />;
   }
 
   return (
     <ObsidianContainer>
-      {appState === AppState.IDLE && (
-        <>
-          <InputForm onSubmit={handleInitiate} />
-          <div className="text-center mt-6">
-            <button
-              onClick={signOut}
-              className="text-gray-500 text-[10px] tracking-widest uppercase hover:text-gold"
-            >
-              Sign Out
-            </button>
-          </div>
-        </>
-      )}
-
-      {[AppState.ANALYZING, AppState.COMMUNING, AppState.MANIFESTING].includes(appState) && (
-        <LoadingOracle state={appState} />
-      )}
-
-      {appState === AppState.REVEALED && result && (
-        <ResultReveal result={result} onReset={reset} />
-      )}
-
       {appState === AppState.ERROR && (
         <div className="text-center pt-20">
           <h2 className="text-red-500 font-serif text-2xl uppercase tracking-widest mb-4">Signal Interrupted</h2>

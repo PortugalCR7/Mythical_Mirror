@@ -1,0 +1,217 @@
+/*
+  InputForm.css — Screen 1 (IDLE), v2.
+
+  Reverted the v1 asymmetric / right-justified layout per user feedback.
+  Now: hero block centered at top, form panel centered with a hairline
+  gold border + faint obsidian-rise fill, footer wordmark below. Single
+  column on every viewport. Tighter internal spacing than v1 to remove
+  the empty-space feel.
+
+  The brief's "no card on a card" rule is overridden here per the user's
+  call — containment helps the form feel intuitive and complete.
+*/
+
+.idle-page {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--mm-s-5) var(--mm-gutter);
+  gap: var(--mm-s-4);
+}
+
+/* Hero — sits above the form, centered */
+.idle-hero {
+  text-align: center;
+  max-width: var(--mm-col-reading);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mm-s-2);
+}
+.idle-hero .mm-display { text-align: center; }
+.idle-subhead {
+  margin: 0;
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.4;
+  color: var(--mm-lumen-soft);
+}
+
+.idle-break {
+  display: flex;
+  align-items: center;
+  gap: var(--mm-s-2);
+  color: var(--mm-inscription);
+  width: 100%;
+}
+.idle-break::before,
+.idle-break::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--mm-inscription);
+  opacity: 0.35;
+}
+
+/* Form panel — the containment */
+.idle-card {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(14, 14, 26, 0.55);
+  border: 1px solid rgba(198, 139, 60, 0.4);
+  padding: var(--mm-s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-s-3);
+}
+
+.idle-form { display: flex; flex-direction: column; gap: var(--mm-s-3); }
+.idle-field { display: flex; flex-direction: column; gap: var(--mm-s-1); }
+.idle-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--mm-s-3);
+}
+
+/* Bare underline inputs */
+.idle-input {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(198, 139, 60, 0.4);
+  padding: var(--mm-s-2) 0;
+  font-family: var(--mm-font-body);
+  font-size: var(--mm-type-body);
+  color: var(--mm-lumen);
+  outline: none;
+  transition: border-color var(--mm-dur-bloom) var(--mm-ease-bloom);
+  color-scheme: dark;
+  width: 100%;
+}
+.idle-input::placeholder { color: var(--mm-lavender-dim); font-style: italic; }
+.idle-input:focus { border-bottom-color: var(--mm-inscription); }
+.idle-input--error {
+  border-bottom-color: var(--mm-ember);
+  animation: idle-error-bloom 600ms ease;
+}
+@keyframes idle-error-bloom {
+  0%   { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Inline error message — appears above submit if validation fails.
+   This was the missing feedback in v1 — only the rule-flash was used,
+   easy to miss, made the submit feel like a dead button. */
+.idle-error-msg {
+  margin: 0;
+  padding: var(--mm-s-2) var(--mm-s-3);
+  border: 1px solid var(--mm-ember);
+  background: rgba(184, 74, 46, 0.08);
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--mm-ember);
+  text-align: center;
+}
+
+/* Path selector — two bare text buttons with selected-state rule */
+.idle-path { display: flex; gap: var(--mm-s-4); }
+.idle-path-option {
+  background: transparent;
+  border: 0;
+  padding: var(--mm-s-2) 0;
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  color: var(--mm-antique);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color var(--mm-dur-bloom) var(--mm-ease-bloom),
+              border-color var(--mm-dur-bloom) var(--mm-ease-bloom);
+}
+.idle-path-option:hover { color: var(--mm-lumen-soft); }
+.idle-path-option--active {
+  color: var(--mm-lumen);
+  border-bottom-color: var(--mm-inscription);
+}
+
+/* Photo dropzone — shorter than v1 (was 280px, lots of empty space) */
+.idle-dropzone {
+  position: relative;
+  height: 180px;
+  border: 1px solid rgba(198, 139, 60, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color var(--mm-dur-bloom) var(--mm-ease-bloom),
+              background var(--mm-dur-bloom) var(--mm-ease-bloom);
+  overflow: hidden;
+}
+.idle-dropzone:hover { border-color: var(--mm-inscription); background: rgba(198, 139, 60, 0.04); }
+.idle-dropzone--drag { border-color: var(--mm-inscription); background: rgba(198, 139, 60, 0.08); }
+.idle-dropzone--filled { cursor: default; }
+.idle-dropzone-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mm-s-1);
+  color: var(--mm-antique);
+  text-align: center;
+  padding: var(--mm-s-2);
+}
+.idle-dropzone-empty-label {
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  color: var(--mm-lumen-soft);
+}
+.idle-dropzone-empty-hint {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--mm-lavender-dim);
+  max-width: 280px;
+}
+.idle-dropzone-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Submit — centered, prominent */
+.idle-submit-row {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--mm-s-2);
+}
+.idle-submit-row .mm-cta { min-width: 220px; }
+
+/* Footer wordmark */
+.idle-footer {
+  color: var(--mm-antique);
+  font-family: var(--mm-font-display);
+  font-weight: 500;
+  font-size: var(--mm-type-eyebrow);
+  letter-spacing: var(--mm-track-eyebrow);
+  text-transform: uppercase;
+  margin-top: var(--mm-s-2);
+}
+
+@media (max-width: 640px) {
+  .idle-page { padding: var(--mm-s-3) var(--mm-gutter); gap: var(--mm-s-3); }
+  .idle-card { padding: var(--mm-s-3); }
+  .idle-row { grid-template-columns: 1fr; gap: var(--mm-s-2); }
+  .idle-submit-row .mm-cta { width: 100%; min-width: 0; }
+  .idle-dropzone { height: 160px; }
+}

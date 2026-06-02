@@ -1,0 +1,101 @@
+/*
+  THE MYTHICAL MIRROR — REDESIGN TOKENS
+  Source of truth for the streaming-key-art / temple direction.
+  All new tokens are namespaced --mm-* so they coexist with the
+  legacy --gold-accent / --obsidian-bg vars during the screen-by-screen
+  migration. Once all screens are off the legacy tokens, App.css can
+  drop its :root block.
+*/
+
+:root {
+  /* ---------- COLOR ---------- */
+
+  /* Obsidian field — faintest indigo bleed, never pure jet */
+  --mm-obsidian:        #070710;
+  --mm-obsidian-rise:   #0E0E1A;
+  --mm-obsidian-deep:   #04040A;
+
+  /* Lumen (warm cream — the "page") */
+  --mm-lumen:           #F4ECD8;
+  --mm-lumen-soft:      #E6DFCB;
+
+  /* Gold ladder — three distinct rungs, used in order of preciousness */
+  --mm-inscription:     #C68B3C;   /* Ceremonial gold, rich gilt-manuscript leaf */
+  --mm-antique:         #8A7340;   /* Muted antique — metadata, secondary CTA, bullets */
+
+  /* Lavender — the only non-gold accent, reserved for wide-tracked metadata */
+  --mm-lavender:        #9F9CC4;
+  --mm-lavender-dim:    #5C5A78;
+
+  /* Error — used once per screen max, never decoratively */
+  --mm-ember:           #B84A2E;
+
+
+  /* ---------- TYPE ---------- */
+
+  --mm-font-display:    'Cinzel', 'Trajan Pro', serif;
+  --mm-font-body:       'Cormorant Garamond', 'Cormorant', Georgia, serif;
+
+  /* Modular scale — viewport-aware via clamp() on display/title/heading.
+     Body is fixed; display steps DOWN on small viewports by design. */
+  --mm-type-display:    clamp(56px, 8vw, 112px);
+  --mm-type-title:      clamp(36px, 5vw, 64px);
+  --mm-type-heading:    clamp(22px, 2.4vw, 28px);
+  --mm-type-body-lg:    20px;
+  --mm-type-body:       17px;
+  --mm-type-eyebrow:    12px;
+  --mm-type-cta:        13px;
+
+  /* Tracking — the system's voice lives here */
+  --mm-track-display:   0.04em;
+  --mm-track-title:     0.03em;
+  --mm-track-heading:   0.02em;
+  --mm-track-eyebrow:   0.22em;
+  --mm-track-cta:       0.28em;
+
+  /* Line heights */
+  --mm-lh-display:      1.05;
+  --mm-lh-body:         1.55;
+
+
+  /* ---------- SPACE ---------- */
+
+  --mm-s-1:             8px;
+  --mm-s-2:             16px;
+  --mm-s-3:             32px;
+  --mm-s-4:             64px;
+  --mm-s-5:             128px;
+
+
+  /* ---------- LAYOUT ---------- */
+
+  /* The editorial reading column — ~65ch at body size */
+  --mm-col-reading:     600px;
+  /* When a wider canvas is justified (hero portrait + lockup) */
+  --mm-col-wide:        960px;
+  /* Mobile gutters */
+  --mm-gutter:          24px;
+
+
+  /* ---------- MOTION ---------- */
+
+  --mm-ease-inscribe:   cubic-bezier(0.16, 1, 0.3, 1);
+  --mm-dur-inscribe:    1400ms;
+
+  --mm-ease-bloom:      cubic-bezier(0.4, 0, 0.2, 1);
+  --mm-dur-bloom:       600ms;
+
+  --mm-ease-hush:       linear;
+  --mm-dur-hush:        600ms;
+}
+
+/* Body size scales down one notch on phones */
+@media (max-width: 640px) {
+  :root {
+    --mm-type-body-lg:  18px;
+    --mm-type-body:     16px;
+    --mm-type-eyebrow:  11px;
+    --mm-type-cta:      12px;
+    --mm-gutter:        16px;
+  }
+}

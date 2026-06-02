@@ -19,8 +19,11 @@ interface Props {
  * point of the image-to-image pipeline). Rendered off-screen and rasterized
  * via html-to-image. Inline px styling keeps output viewport-independent.
  */
-const GOLD = '#F3D060';
-const OBSIDIAN = '#050505';
+const INSCRIPTION = '#C68B3C';
+const LUMEN = '#F4ECD8';
+const LUMEN_SOFT = '#E6DFCB';
+const OBSIDIAN = '#070710';
+const OBSIDIAN_DEEP = '#04040A';
 const W = 1080;
 const H = 1920;
 
@@ -36,19 +39,20 @@ const Portrait: React.FC<{ src?: string; alt: string }> = ({ src, alt }) =>
         width: '100%',
         height: '100%',
         objectFit: 'cover',
-        // No grayscale — these portraits live on their colour (jade, gold, forest).
       }}
     />
   ) : (
-    <div style={{ position: 'absolute', inset: 0, backgroundColor: '#111' }} />
+    <div style={{ position: 'absolute', inset: 0, backgroundColor: OBSIDIAN_DEEP }} />
   );
 
 const Lineage: React.FC<{ culture?: string; style?: React.CSSProperties }> = ({ culture, style }) => (
   <div
     style={{
-      color: 'rgba(243,208,96,0.7)',
-      letterSpacing: '0.5em',
-      fontSize: 24,
+      fontFamily: 'Cinzel, serif',
+      fontWeight: 500,
+      color: 'rgba(159, 156, 196, 0.85)',
+      letterSpacing: '0.42em',
+      fontSize: 26,
       textTransform: 'uppercase',
       textAlign: 'center',
       textShadow: '0 2px 18px rgba(0,0,0,0.85)',
@@ -59,15 +63,17 @@ const Lineage: React.FC<{ culture?: string; style?: React.CSSProperties }> = ({ 
   </div>
 );
 
-const Title: React.FC<{ text: string; size?: number }> = ({ text, size = 104 }) => (
+const Title: React.FC<{ text: string; size?: number }> = ({ text, size = 110 }) => (
   <h1
     style={{
       fontFamily: 'Cinzel, serif',
-      color: GOLD,
+      color: LUMEN,
       fontSize: size,
       margin: 0,
       lineHeight: 1.02,
-      fontWeight: 700,
+      fontWeight: 500,
+      letterSpacing: '0.035em',
+      textTransform: 'uppercase',
       textAlign: 'center',
       textShadow: '0 4px 40px rgba(0,0,0,0.6)',
     }}
@@ -79,11 +85,11 @@ const Title: React.FC<{ text: string; size?: number }> = ({ text, size = 104 }) 
 const OneLiner: React.FC<{ text: string }> = ({ text }) => (
   <p
     style={{
-      color: 'rgba(243,208,96,0.85)',
+      fontFamily: 'Cormorant Garamond, serif',
+      color: LUMEN_SOFT,
       fontStyle: 'italic',
-      letterSpacing: '0.14em',
-      fontSize: 34,
-      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      fontSize: 38,
       margin: 0,
       textAlign: 'center',
       textShadow: '0 2px 24px rgba(0,0,0,0.7)',
@@ -96,9 +102,11 @@ const OneLiner: React.FC<{ text: string }> = ({ text }) => (
 const Name: React.FC<{ text: string }> = ({ text }) => (
   <p
     style={{
-      color: 'rgba(255,255,255,0.7)',
+      fontFamily: 'Cinzel, serif',
+      fontWeight: 500,
+      color: 'rgba(244, 236, 216, 0.75)',
       fontSize: 30,
-      letterSpacing: '0.22em',
+      letterSpacing: '0.24em',
       textTransform: 'uppercase',
       margin: 0,
       textAlign: 'center',
@@ -114,19 +122,21 @@ const Wordmark: React.FC = () => (
     <div
       style={{
         fontFamily: 'Cinzel, serif',
-        color: 'rgba(243,208,96,0.9)',
-        fontSize: 30,
-        letterSpacing: '0.35em',
+        fontWeight: 500,
+        color: INSCRIPTION,
+        fontSize: 32,
+        letterSpacing: '0.36em',
         textTransform: 'uppercase',
       }}
     >
-      The Mythical Mirror
+      The Mythic Mirror
     </div>
     <div
       style={{
-        color: 'rgba(255,255,255,0.45)',
-        fontSize: 22,
-        letterSpacing: '0.22em',
+        fontFamily: 'Cinzel, serif',
+        color: 'rgba(244, 236, 216, 0.5)',
+        fontSize: 20,
+        letterSpacing: '0.24em',
         marginTop: 10,
       }}
     >
@@ -140,8 +150,8 @@ const frame = (extra: React.CSSProperties = {}): React.CSSProperties => ({
   height: H,
   position: 'relative',
   backgroundColor: OBSIDIAN,
-  color: '#fff',
-  fontFamily: 'Inter, sans-serif',
+  color: LUMEN,
+  fontFamily: 'Cormorant Garamond, serif',
   overflow: 'hidden',
   ...extra,
 });
@@ -157,12 +167,10 @@ const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, portrait: p
   return (
     <div ref={ref} style={frame()}>
       <Portrait src={portrait} alt={title} />
-      {/* gold glow at top edge */}
-      <div style={{ position: 'absolute', top: -260, left: '50%', transform: 'translateX(-50%)', width: 1000, height: 640, background: 'rgba(243,208,96,0.10)', filter: 'blur(180px)', pointerEvents: 'none' }} />
-      {/* deep bottom scrim */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1040, background: 'linear-gradient(to top, rgba(5,5,5,0.97) 22%, rgba(5,5,5,0.6) 55%, rgba(5,5,5,0))' }} />
-      {/* light top scrim for eyebrow legibility on bright skies */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 300, background: 'linear-gradient(to bottom, rgba(5,5,5,0.65), rgba(5,5,5,0))' }} />
+      {/* deep bottom scrim — pulls obsidian up into the lower 60% */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1100, background: 'linear-gradient(to top, rgba(7,7,16,0.97) 20%, rgba(7,7,16,0.62) 55%, rgba(7,7,16,0))' }} />
+      {/* light top scrim for eyebrow legibility */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 300, background: 'linear-gradient(to bottom, rgba(7,7,16,0.65), rgba(7,7,16,0))' }} />
       {/* top eyebrow */}
       <div style={{ position: 'absolute', top: 110, left: 80, right: 80 }}>
         <Lineage culture={culture} />
@@ -172,7 +180,8 @@ const ShareCard = React.forwardRef<HTMLDivElement, Props>(({ result, portrait: p
         <Title text={title} />
         {oneLiner && <OneLiner text={oneLiner} />}
         {name && <Name text={name} />}
-        <div style={{ width: 140, height: 1, background: 'rgba(243,208,96,0.4)', margin: '12px 0' }} />
+        <div style={{ width: 24, color: INSCRIPTION, fontSize: 22, textAlign: 'center', marginTop: 4 }}>◇</div>
+        <div style={{ width: 140, height: 1, background: 'rgba(198,139,60,0.55)', margin: '8px 0 0' }} />
         <Wordmark />
       </div>
     </div>

@@ -1,0 +1,94 @@
+/*
+  LoadingOracle.css — Screens 2-3.
+  No spinner, no progress bar, no animated icon. The brief is explicit:
+  "loading states use the inscription metaphor."
+
+  Layout: rail on left (same as IDLE), large display title + cycling
+  phase phrase center-right, hairline rule beneath whose width grows
+  as phases complete (1/3 → 2/3 → full). That growing rule IS the
+  progress indicator.
+*/
+
+.load-frame {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+.load-rail {
+  grid-column: 1;
+  padding-top: var(--mm-s-5);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.load-column {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 720px;
+  padding: var(--mm-s-5) var(--mm-s-4);
+  /* Offset so it isn't centered — reveal moment is reserved for center */
+  margin-left: 8vw;
+}
+
+.load-eyebrow { margin-bottom: var(--mm-s-2); }
+
+.load-phrase {
+  font-family: var(--mm-font-body);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(20px, 2.4vw, 28px);
+  line-height: 1.4;
+  color: var(--mm-lumen-soft);
+  margin: var(--mm-s-3) 0 0 0;
+  min-height: 1.4em;
+}
+.load-phrase-fade {
+  animation: load-inscribe var(--mm-dur-inscribe) var(--mm-ease-inscribe);
+}
+@keyframes load-inscribe {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.load-progress {
+  margin-top: var(--mm-s-5);
+  width: 100%;
+  max-width: 480px;
+  height: 1px;
+  background: rgba(198, 139, 60, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+.load-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--mm-inscription);
+  transition: width var(--mm-dur-inscribe) var(--mm-ease-inscribe);
+}
+
+@media (max-width: 760px) {
+  .load-frame {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .load-rail {
+    grid-column: 1;
+    grid-row: 1;
+    padding: var(--mm-s-3) var(--mm-gutter) 0;
+    justify-content: flex-start;
+  }
+  .load-rail .mm-rail {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
+  .load-column {
+    grid-column: 1;
+    grid-row: 2;
+    margin-left: 0;
+    padding: var(--mm-s-4) var(--mm-gutter);
+  }
+}
