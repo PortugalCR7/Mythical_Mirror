@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { AppState, BirthData, OracleResult } from '../services/types';
 import { calculateCosmicFingerprint, selectArchetype } from '../services/cosmicCalc';
 import { generateMythopoeticBrief, generateMythicImage } from '../services/geminiService';
-import { saveReading } from '../services/dbService';
+import { saveReading, getReadingCount, FREE_READING_LIMIT, isUnlimited } from '../services/dbService';
 import { supabase } from '../services/supabaseClient';
 
 // UI Components
@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [readingCount, setReadingCount] = useState<number>(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -30,6 +31,14 @@ const App: React.FC = () => {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (session) getReadingCount().then(setReadingCount);
+    else setReadingCount(0);
+  }, [session]);
+
+  const unlimited = isUnlimited(session?.user?.email);
+  const limitReached = !unlimited && readingCount >= FREE_READING_LIMIT;
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -43,6 +52,7 @@ const App: React.FC = () => {
   };
 
   const handleInitiate = async (data: BirthData) => {
+    if (limitReached) return;
     setAppState(AppState.ANALYZING);
     try {
       const fingerprint = calculateCosmicFingerprint(data);
@@ -110,12 +120,18 @@ const App: React.FC = () => {
 
       setResult(finalizedResult);
       await saveReading(finalizedResult);
+      setReadingCount((c) => c + 1);
 
-      // STATE TRANSITION: Only move to REVEALED if we have a result. 
+      // STATE TRANSITION: Only move to REVEALED if we have a result.
       // The image check is already handled by finalImage being undefined if invalid.
       setAppState(AppState.REVEALED);
     } catch (err: any) {
       console.error("Sequence Failure:", err);
+      if (err?.message?.includes('free readings')) {
+        setReadingCount(FREE_READING_LIMIT);
+        setAppState(AppState.IDLE);
+        return;
+      }
       setErrorMessage(err.message || "Unknown Failure");
       setAppState(AppState.ERROR);
     }
@@ -133,7 +149,26 @@ const App: React.FC = () => {
     <ObsidianContainer>
       {appState === AppState.IDLE && (
         <>
-          <InputForm onSubmit={handleInitiate} />
+          {limitReached ? (
+            <div className="text-center pt-20 max-w-xs mx-auto">
+              <h2 className="font-serif text-2xl text-gold uppercase tracking-widest mb-4">
+                The Well Runs Dry
+              </h2>
+              <p className="text-gray-500 text-[11px] leading-relaxed mb-8 italic">
+                You have drawn all {FREE_READING_LIMIT} of your free readings. The
+                mirror rests. More await beyond the veil — soon.
+              </p>
+            </div>
+          ) : (
+            <>
+              <InputForm onSubmit={handleInitiate} />
+              {!unlimited && (
+                <p className="text-center text-gray-600 text-[10px] tracking-widest uppercase mt-4">
+                  {FREE_READING_LIMIT - readingCount} of {FREE_READING_LIMIT} readings remaining
+                </p>
+              )}
+            </>
+          )}
           <div className="text-center mt-6">
             <button
               onClick={signOut}

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
 // @ts-ignore – JS helpers bundled by Vercel
 import { getArchetype } from '../server/archetypeLoader.js';
 // @ts-ignore
@@ -10,6 +11,57 @@ import { getRegionalStory } from '../server/regionalLoader.js';
 import { getOracleDispatch } from '../config/dispatch.js';
 
 const TEXT_MODEL = 'gemini-2.5-flash';
+
+// Free readings allowed per account. Mirror of FREE_READING_LIMIT in
+// services/dbService.ts — keep the two in sync.
+const FREE_READING_LIMIT = 3;
+
+/**
+ * Enforces the per-account free-reading gate using the caller's Supabase JWT.
+ * RLS scopes the count to the user's own rows. Returns an error response to
+ * send, or null to proceed.
+ */
+async function enforceReadingLimit(req: VercelRequest, res: VercelResponse) {
+  // The gate ships dormant — only enforce when explicitly switched on.
+  if (process.env.VITE_RATE_LIMIT_ENABLED !== 'true') return null;
+
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Authentication required.' });
+
+  const url = process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return null; // Supabase not configured — skip the gate.
+
+  const sb = createClient(url, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: auth, error: authErr } = await sb.auth.getUser();
+  if (authErr || !auth?.user) return res.status(401).json({ error: 'Invalid session.' });
+
+  // Permanent unlimited lane (admins / testers) survives even when the gate is on.
+  const unlimitedEmails = (process.env.VITE_RATE_LIMIT_UNLIMITED_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (auth.user.email && unlimitedEmails.includes(auth.user.email.toLowerCase())) return null;
+
+  const { count, error: countErr } = await sb
+    .from('readings')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', auth.user.id);
+  if (countErr) return null; // Don't hard-fail generation on a count hiccup.
+
+  if ((count ?? 0) >= FREE_READING_LIMIT) {
+    return res.status(429).json({
+      error: `You've reached your ${FREE_READING_LIMIT} free readings.`,
+      limitReached: true,
+    });
+  }
+  return null;
+}
 
 function makeClient() {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -34,6 +86,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
+    const limitResponse = await enforceReadingLimit(req, res);
+    if (limitResponse) return limitResponse;
+
     const { userData, userImage } = req.body;
     if (!userData) return res.status(400).json({ error: 'Missing user data.' });
     if (!userData.archetypeRef) return res.status(400).json({ error: 'Missing archetype reference in user data.' });

@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient';
+
 /**
  * THE ORACLE: Generates the Mythopoetic Brief.
  * Sends the photo too — the brief endpoint runs narrative generation and
@@ -8,9 +10,13 @@ export const generateMythopoeticBrief = async (userData: any, base64Photo?: stri
   console.log("Contacting the Oracle...");
 
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
     const response = await fetch('/api/generate-brief', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ userData, userImage: base64Photo }),
     });
 

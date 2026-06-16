@@ -10,6 +10,39 @@ import { OracleResult } from './types';
 
 const BUCKET = 'portraits';
 
+// Free readings allowed per account before the monetization gate.
+// Mirror this value in api/generate-brief.ts (server-side enforcement).
+export const FREE_READING_LIMIT = 3;
+
+// The gate ships dormant. It only activates when VITE_RATE_LIMIT_ENABLED is
+// 'true'; until then every account is unlimited (the testing lane). Emails in
+// VITE_RATE_LIMIT_UNLIMITED_EMAILS stay unlimited even after the gate is on.
+export const RATE_LIMIT_ENABLED = import.meta.env.VITE_RATE_LIMIT_ENABLED === 'true';
+
+const UNLIMITED_EMAILS = (import.meta.env.VITE_RATE_LIMIT_UNLIMITED_EMAILS || '')
+  .split(',')
+  .map((e: string) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+export function isUnlimited(email?: string | null): boolean {
+  if (!RATE_LIMIT_ENABLED) return true;
+  return !!(email && UNLIMITED_EMAILS.includes(email.toLowerCase()));
+}
+
+export const getReadingCount = async (): Promise<number> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  const { count, error } = await supabase
+    .from('readings')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+  if (error) {
+    console.error('[Vault] Count error:', error);
+    return 0;
+  }
+  return count ?? 0;
+};
+
 function dataUrlToBlob(dataUrl: string): { blob: Blob; ext: string } {
   const m = dataUrl.match(/^data:(image\/[a-zA-Z+.-]+);base64,(.*)$/);
   if (!m) throw new Error('Invalid portrait data URL');
